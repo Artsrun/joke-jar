@@ -259,7 +259,7 @@
   </div>
 
   <script>
-    /* ── Joke Jar v4.1 — Spring-Damper Physics ───────────────── */
+    /* Joke Jar v4.2 — Spring-Damper + GPU Particles */
 
     const UI = {
       en: {
@@ -583,11 +583,6 @@
         return new Float32Array([s, 0, 0, 0, 0, s, 0, 0, 0, 0, s, 0, 0, 0, 0, 1]);
       }
 
-      /* ── Spring-Damper Physics ───────────────────────────────
-         a = -k * x - d * v + impulse
-         v += a * dt
-         x += v * dt
-         ──────────────────────────────────────────────────── */
       const phys = {
         x: 0, y: 0, z: 0,
         vx: 0, vy: 0, vz: 0,
@@ -597,13 +592,95 @@
         idleY: 0.35
       };
 
-      const K_POS = 48;
-      const D_POS = 9.5;
-      const K_ROT = 36;
-      const D_ROT = 7.2;
-      const K_SCL = 60;
-      const D_SCL = 11;
+      const K_POS = 48, D_POS = 9.5, K_ROT = 36, D_ROT = 7.2, K_SCL = 60, D_SCL = 11;
       const MAX_IMPULSE = 2.8;
+
+      /* GPU Particle System */
+      const MAX_PARTICLES = 280;
+      const PSTRIDE = 8;
+      const particles = new Float32Array(MAX_PARTICLES * PSTRIDE);
+      let pCount = 0;
+
+      const pVs = `
+        attribute vec3 aPPos;
+        attribute float aLife;
+        attribute float aMaxLife;
+        uniform mat4 uViewProj;
+        uniform float uPixelRatio;
+        varying float vAlpha;
+        varying float vAge;
+        void main() {
+          vAge = 1.0 - (aLife / aMaxLife);
+          vAlpha = smoothstep(0.0, 0.15, aLife / aMaxLife) * smoothstep(0.0, 0.4, aLife);
+          vec4 clip = uViewProj * vec4(aPPos, 1.0);
+          gl_Position = clip;
+          float size = mix(14.0, 4.0, vAge) * uPixelRatio;
+          gl_PointSize = size * (1.0 / max(clip.w, 0.5));
+        }`;
+      const pFs = `
+        precision mediump float;
+        varying float vAlpha;
+        varying float vAge;
+        void main() {
+          vec2 uv = gl_PointCoord * 2.0 - 1.0;
+          float d = dot(uv, uv);
+          if (d > 1.0) discard;
+          float soft = exp(-d * 2.8);
+          vec3 col = mix(vec3(0.55, 0.85, 1.0), vec3(0.9, 0.95, 1.0), vAge);
+          gl_FragColor = vec4(col, vAlpha * soft * 0.85);
+        }`;
+
+      const pProg = gl.createProgram();
+      gl.attachShader(pProg, compile(gl.VERTEX_SHADER, pVs));
+      gl.attachShader(pProg, compile(gl.FRAGMENT_SHADER, pFs));
+      gl.linkProgram(pProg);
+
+      const pBuf = gl.createBuffer();
+      const aPPos = gl.getAttribLocation(pProg, 'aPPos');
+      const aLife = gl.getAttribLocation(pProg, 'aLife');
+      const aMaxLife = gl.getAttribLocation(pProg, 'aMaxLife');
+      const uViewProj = gl.getUniformLocation(pProg, 'uViewProj');
+      const uPixelRatio = gl.getUniformLocation(pProg, 'uPixelRatio');
+
+      function emit(n, intensity) {
+        const originY = 0.15;
+        for (let i = 0; i < n; i++) {
+          if (pCount >= MAX_PARTICLES) break;
+          const o = pCount * PSTRIDE;
+          const theta = Math.random() * Math.PI * 2;
+          const phi = (Math.random() - 0.3) * 1.4;
+          const speed = (0.6 + Math.random() * 1.4) * (0.7 + intensity * 0.5);
+          particles[o]     = (Math.random() - 0.5) * 0.15;
+          particles[o + 1] = originY + (Math.random() - 0.5) * 0.1;
+          particles[o + 2] = (Math.random() - 0.5) * 0.15;
+          particles[o + 3] = Math.cos(theta) * Math.cos(phi) * speed;
+          particles[o + 4] = Math.sin(phi) * speed + 0.4;
+          particles[o + 5] = Math.sin(theta) * Math.cos(phi) * speed;
+          const life = 0.5 + Math.random() * 0.9;
+          particles[o + 6] = life;
+          particles[o + 7] = life;
+          pCount++;
+        }
+      }
+
+      function updateParticles(dt) {
+        const GRAVITY = -1.8;
+        let w = 0;
+        for (let r = 0; r < pCount; r++) {
+          const o = r * PSTRIDE;
+          particles[o + 6] -= dt;
+          if (particles[o + 6] <= 0) continue;
+          particles[o + 4] += GRAVITY * dt;
+          particles[o]     += particles[o + 3] * dt;
+          particles[o + 1] += particles[o + 4] * dt;
+          particles[o + 2] += particles[o + 5] * dt;
+          if (w !== r) {
+            for (let k = 0; k < PSTRIDE; k++) particles[w * PSTRIDE + k] = particles[o + k];
+          }
+          w++;
+        }
+        pCount = w;
+      }
 
       let lastTs = 0;
 
@@ -617,35 +694,32 @@
         phys.vx  += (ax / len) * f * 1.8;
         phys.vy  += (ay / len) * f * 1.1;
         phys.vz  += (az / len) * f * 0.7;
-
         phys.wrx += (Math.random() - 0.5) * f * 3.2;
         phys.wry += (Math.random() - 0.5) * f * 2.4;
         phys.wrz += (Math.random() - 0.5) * f * 2.8;
-
         phys.vs  -= f * 0.35;
+
+        emit(Math.floor(40 + f * 55), f);
       }
 
       function step(dt) {
         dt = Math.min(dt, 0.033);
-
         phys.vx += (-K_POS * phys.x - D_POS * phys.vx) * dt;
         phys.vy += (-K_POS * phys.y - D_POS * phys.vy) * dt;
         phys.vz += (-K_POS * phys.z - D_POS * phys.vz) * dt;
         phys.x  += phys.vx * dt;
         phys.y  += phys.vy * dt;
         phys.z  += phys.vz * dt;
-
         phys.wrx += (-K_ROT * phys.rx - D_ROT * phys.wrx) * dt;
         phys.wry += (-K_ROT * phys.ry - D_ROT * phys.wry) * dt;
         phys.wrz += (-K_ROT * phys.rz - D_ROT * phys.wrz) * dt;
         phys.rx  += phys.wrx * dt;
         phys.ry  += phys.wry * dt;
         phys.rz  += phys.wrz * dt;
-
         phys.vs  += (-K_SCL * (phys.s - 1) - D_SCL * phys.vs) * dt;
         phys.s   += phys.vs * dt;
-
         phys.idleY += 0.55 * dt;
+        updateParticles(dt);
       }
 
       function render(ts) {
@@ -660,12 +734,13 @@
         const aspect = canvas.width / canvas.height;
         const proj = perspective(0.52, aspect, 0.1, 20);
         const view = translate(0, -0.04, -2.55);
+        const viewProj = mul(proj, view);
 
+        gl.useProgram(prog);
         let model = mul(rotY(phys.idleY + phys.ry), rotX(phys.rx));
         model = mul(rotZ(phys.rz), model);
         model = mul(scale(phys.s), model);
         model = mul(translate(phys.x, phys.y, phys.z * 0.4), model);
-
         const mvp = mul(proj, mul(view, model));
 
         gl.uniformMatrix4fv(uMVP, false, mvp);
@@ -680,6 +755,29 @@
         gl.vertexAttribPointer(aNorm, 3, gl.FLOAT, false, 0, 0);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
         gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_SHORT, 0);
+
+        if (pCount > 0) {
+          gl.useProgram(pProg);
+          gl.depthMask(false);
+          gl.bindBuffer(gl.ARRAY_BUFFER, pBuf);
+          gl.bufferData(gl.ARRAY_BUFFER, particles.subarray(0, pCount * PSTRIDE), gl.DYNAMIC_DRAW);
+
+          gl.enableVertexAttribArray(aPPos);
+          gl.vertexAttribPointer(aPPos, 3, gl.FLOAT, false, 32, 0);
+          gl.enableVertexAttribArray(aLife);
+          gl.vertexAttribPointer(aLife, 1, gl.FLOAT, false, 32, 24);
+          gl.enableVertexAttribArray(aMaxLife);
+          gl.vertexAttribPointer(aMaxLife, 1, gl.FLOAT, false, 32, 28);
+
+          gl.uniformMatrix4fv(uViewProj, false, viewProj);
+          gl.uniform1f(uPixelRatio, Math.min(devicePixelRatio || 1, 2));
+          gl.drawArrays(gl.POINTS, 0, pCount);
+
+          gl.disableVertexAttribArray(aPPos);
+          gl.disableVertexAttribArray(aLife);
+          gl.disableVertexAttribArray(aMaxLife);
+          gl.depthMask(true);
+        }
 
         requestAnimationFrame(render);
       }
