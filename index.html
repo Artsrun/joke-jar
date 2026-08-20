@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0f0f13" />
+  <title>Joke Jar · Կատակի Բանկա</title>
+  <style>
+    :root {
+      --bg: #0f0f13;
+      --surface: #1e293b;
+      --border: #334155;
+      --accent: #7dd3fc;
+      --accent-dim: #38bdf8;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    #app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+      max-width: 480px;
+      margin: 0 auto;
+      position: relative;
+    }
+    header {
+      width: 100%;
+      text-align: center;
+      padding: 14px 0 8px;
+      flex-shrink: 0;
+    }
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+    .sub {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 3px;
+      letter-spacing: 0.01em;
+    }
+    .lang {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 12px;
+    }
+    .lang button {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      min-height: 32px;
+      transition: all .15s;
+    }
+    .lang button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .lang button.active {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+    #stage {
+      flex: 1 1 auto;
+      width: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+    #gl {
+      width: 100%;
+      height: 100%;
+      max-height: min(48vh, 340px);
+      display: block;
+      touch-action: none;
+    }
+    #hint {
+      position: absolute;
+      bottom: 6%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+      pointer-events: none;
+      transition: opacity .3s;
+      white-space: nowrap;
+      background: rgba(15,15,19,.55);
+      padding: 4px 12px;
+      border-radius: 999px;
+      backdrop-filter: blur(6px);
+    }
+    #hint.hidden { opacity: 0; }
+    #output {
+      width: 100%;
+      flex-shrink: 0;
+      padding-bottom: 12px;
+    }
+    #joke-card {
+      background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 16px 14px;
+      display: none;
+      animation: pop .32s cubic-bezier(.2,1.15,.3,1);
+      box-shadow: 0 8px 32px rgba(0,0,0,.35);
+    }
+    #joke-card.show { display: block; }
+    @keyframes pop {
+      from { opacity: 0; transform: scale(.94) translateY(10px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    #joke-text {
+      font-size: 1.05rem;
+      line-height: 1.5;
+      margin-bottom: 14px;
+      font-weight: 450;
+    }
+    .qs-list {
+      margin-bottom: 12px;
+    }
+    .qs-list p {
+      font-size: 0.8rem;
+      color: var(--accent);
+      margin-bottom: 6px;
+      line-height: 1.35;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+    .actions button {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 11px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      min-height: 44px;
+      transition: background .15s;
+    }
+    .actions button:active { background: #334155; }
+    .actions button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .actions button.primary {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+    #perm {
+      position: absolute;
+      inset: 0;
+      background: rgba(15,15,19,.94);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      z-index: 30;
+      padding: 24px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+    }
+    #perm.hidden { display: none; }
+    #perm .icon { font-size: 2.4rem; line-height: 1; }
+    #perm .title { font-size: 1.15rem; font-weight: 700; }
+    #perm .desc { font-size: 0.8rem; color: var(--muted); max-width: 260px; line-height: 1.4; }
+    #perm button {
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 1rem;
+      min-height: 48px;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    #perm button:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Joke Jar</h1>
+      <div class="sub">Կատակի Բանկա · Банка Шуток</div>
+      <div class="lang">
+        <button data-lang="hy" class="active">ՀԱՅ</button>
+        <button data-lang="en">EN</button>
+        <button data-lang="ru">RU</button>
+      </div>
+    </header>
+
+    <div id="stage">
+      <canvas id="gl"></canvas>
+      <div id="hint">Shake the device</div>
+    </div>
+
+    <div id="output">
+      <div id="joke-card">
+        <div id="joke-text"></div>
+        <div class="qs-list" id="qs-list"></div>
+        <div class="actions" id="actions"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="perm">
+    <div class="icon">🫙</div>
+    <div class="title" id="perm-title">Enable motion</div>
+    <div class="desc" id="perm-desc">Needed to detect device shake</div>
+    <button id="enable">Tap to enable</button>
+  </div>
+
+  <script>
+    // ─── i18n strings ───────────────────────────────────────────
+    const UI = {
+      hy: {
+        hint: 'Թափահարիր հեռախոսը',
+        hintAgain: 'Թափահարիր նորից',
+        permTitle: 'Թույլատրել շարժումը',
+        permDesc: 'Անհրաժեշտ է թափահարումը զգալու համար',
+        enable: 'Թույլատրել',
+        interesting: 'Հետաքրքիր է',
+        next: 'Հաջորդը'
+      },
+      en: {
+        hint: 'Shake the device',
+        hintAgain: 'Shake again',
+        permTitle: 'Enable motion',
+        permDesc: 'Needed to detect device shake',
+        enable: 'Tap to enable',
+        interesting: 'Interesting',
+        next: 'Next joke'
+      },
+      ru: {
+        hint: 'Потряси телефон',
+        hintAgain: 'Потряси ещё',
+        permTitle: 'Разрешить движение',
+        permDesc: 'Нужно, чтобы ловить тряску',
+        enable: 'Разрешить',
+        interesting: 'Интересно',
+        next: 'Следующая'
+      }
+    };
+
+    // ─── Jokes ──────────────────────────────────────────────────
+    const JOKES = {
+      hy: [
+        { text: "Ինչու՞ համակարգիչը սառը է։ Որովհետև Windows-ը բաց է։", qs: ["Ինչո՞վ է սա կապված տեխնիկայի հետ։", "Կասե՞ս ավելի լավ տարբերակ։"] },
+        { text: "Շունը ասում է կատվին. «Ինչու՞ ես միշտ վազում»։ Կատուն. «Որովհետև դու միշտ հետապնդում ես»։", qs: ["Ո՞վ է մեղավոր այս վեճում։", "Ինչպե՞ս կվերջացնեիր այս պատմությունը։"] },
+        { text: "Ինչու՞ գիրքը չի կարողանում քնել։ Որովհետև ունի շատ էջեր։", qs: ["Ի՞նչ է նշանակում «էջեր» այստեղ։", "Կարո՞ղ ես ավելացնել երկրորդ մաս։"] },
+        { text: "Ծրագրավորողը մտավ բար։ Պատվիրեց 1 գարեջուր։ Պատվիրեց 0 գարեջուր։ Պատվիրեց -1 գարեջուր։ Պատվիրեց NaN գարեջուր։", qs: ["Ի՞նչ սխալ է այստեղ։", "Ինչո՞ւ է NaN-ը ծիծաղելի։"] },
+        { text: "Ինչու՞ հայը չի վախենում մթությունից։ Որովհետև գիտի՝ լույսը մի օր կվերադառնա։", qs: ["Սա փիլիսոփայությո՞ւն է, թե՞ կատակ։", "Ինչպե՞ս կփոխեիր վերջին տողը։"] }
+      ],
+      en: [
+        { text: "Why don’t scientists trust atoms? Because they make up everything.", qs: ["What does “make up” mean here?", "Can you invent a worse science joke?"] },
+        { text: "I told my computer I needed a break. It said “No problem — I’ll go to sleep.”", qs: ["Is the computer polite or lazy?", "What would a phone reply?"] },
+        { text: "Why was the math book sad? It had too many problems.", qs: ["Is this about life or algebra?", "Add one more line to the joke."] },
+        { text: "A SQL query walks into a bar, walks up to two tables and asks: “Can I join you?”", qs: ["What kind of join would it be?", "Why is this funny to developers?"] },
+        { text: "Why do programmers prefer dark mode? Because light attracts bugs.", qs: ["Is this about insects or code?", "Invent a light-mode version."] }
+      ],
+      ru: [
+        { text: "Почему программисты путают Хэллоуин и Рождество? Потому что Oct 31 = Dec 25.", qs: ["Объясни шутку без цифр.", "Какая система счисления тут важна?"] },
+        { text: "Заходит в бар бесконечное количество математиков…", qs: ["Чем заканчивается эта шутка?", "Почему бесконечность смешна?"] },
+        { text: "Почему кот всегда падает на лапы, а тост маслом вниз? Квантовая механика.", qs: ["Это физика или философия?", "Придумай третий объект."] },
+        { text: "Программист ставит себе будильник на 8:00. Просыпается в 7:59 и думает: «Ещё есть время».", qs: ["Знакомо ли тебе это чувство?", "Что бы ты изменил в шутке?"] },
+        { text: "— Сколько программистов нужно, чтобы вкрутить лампочку? — Ни одного, это hardware проблема.", qs: ["Почему hardware, а не software?", "Сделай версию про дизайнеров."] }
+      ]
+    };
+
+    // ─── State ──────────────────────────────────────────────────
+    let lang = 'hy';
+    let lastJoke = null;
+    let shakeCooldown = false;
+    let motionEnabled = false;
+    let hasShownJoke = false;
+
+    const $ = s => document.querySelector(s);
+    const glCanvas = $('#gl');
+    const jokeCard = $('#joke-card');
+    const jokeText = $('#joke-text');
+    const qsList = $('#qs-list');
+    const actionsEl = $('#actions');
+    const hint = $('#hint');
+    const perm = $('#perm');
+    const enableBtn = $('#enable');
+    const permTitle = $('#perm-title');
+    const permDesc = $('#perm-desc');
+
+    function applyUI() {
+      const t = UI[lang];
+      hint.textContent = hasShownJoke ? t.hintAgain : t.hint;
+      permTitle.textContent = t.permTitle;
+      permDesc.textContent = t.permDesc;
+      enableBtn.textContent = t.enable;
+    }
+    applyUI();
+
+    // ─── Language ───────────────────────────────────────────────
+    document.querySelectorAll('.lang button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.lang button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        lang = btn.dataset.lang;
+        applyUI();
+      });
+    });
+
+    // ─── Permission / Motion ────────────────────────────────────
+    const needsPermission = typeof DeviceMotionEvent !== 'undefined' &&
+                            typeof DeviceMotionEvent.requestPermission === 'function';
+
+    // Desktop / Android that don't need explicit permission → hide overlay
+    if (!needsPermission) {
+      motionEnabled = true;
+      window.addEventListener('devicemotion', onMotion);
+      perm.classList.add('hidden');
+    }
+
+    const requestMotion = async () => {
+      if (needsPermission) {
+        try {
+          const res = await DeviceMotionEvent.requestPermission();
+          if (res === 'granted') {
+            motionEnabled = true;
+            window.addEventListener('devicemotion', onMotion);
+            perm.classList.add('hidden');
+          }
+        } catch (e) {
+          motionEnabled = true;
+          window.addEventListener('devicemotion', onMotion);
+          perm.classList.add('hidden');
+        }
+      } else {
+        motionEnabled = true;
+        window.addEventListener('devicemotion', onMotion);
+        perm.classList.add('hidden');
+      }
+    };
+
+    enableBtn.addEventListener('click', requestMotion);
+
+    glCanvas.addEventListener('click', () => {
+      if (!motionEnabled) requestMotion();
+      else triggerJoke();
+    });
+
+    let lastX = 0, lastY = 0, lastZ = 0;
+    const SHAKE_THRESHOLD = 16;
+
+    function onMotion(e) {
+      if (!e.accelerationIncludingGravity) return;
+      const a = e.accelerationIncludingGravity;
+      const dx = Math.abs(a.x - lastX);
+      const dy = Math.abs(a.y - lastY);
+      const dz = Math.abs(a.z - lastZ);
+      lastX = a.x; lastY = a.y; lastZ = a.z;
+      if (dx + dy + dz > SHAKE_THRESHOLD) triggerJoke();
+    }
+
+    // ─── Trigger ────────────────────────────────────────────────
+    function triggerJoke() {
+      if (shakeCooldown) return;
+      shakeCooldown = true;
+      setTimeout(() => shakeCooldown = false, 1400);
+
+      if (navigator.vibrate) navigator.vibrate(40);
+
+      jar.shake(1.35);
+
+      const pool = JOKES[lang];
+      let joke = pool[Math.floor(Math.random() * pool.length)];
+      if (pool.length > 1 && lastJoke && joke.text === lastJoke.text) {
+        joke = pool[(pool.indexOf(joke) + 1) % pool.length];
+      }
+      lastJoke = joke;
+      hasShownJoke = true;
+      applyUI();
+
+      jokeText.textContent = joke.text;
+
+      qsList.innerHTML = '';
+      joke.qs.forEach(q => {
+        const p = document.createElement('p');
+        p.textContent = '→ ' + q;
+        qsList.appendChild(p);
+      });
+
+      const t = UI[lang];
+      actionsEl.innerHTML = '';
+      const bInteresting = document.createElement('button');
+      bInteresting.textContent = t.interesting;
+      bInteresting.onclick = () => { bInteresting.style.opacity = '0.55'; };
+      const bNext = document.createElement('button');
+      bNext.className = 'primary';
+      bNext.textContent = t.next;
+      bNext.onclick = () => triggerJoke();
+      actionsEl.appendChild(bInteresting);
+      actionsEl.appendChild(bNext);
+
+      jokeCard.classList.add('show');
+      hint.classList.add('hidden');
+      setTimeout(() => hint.classList.remove('hidden'), 1800);
+    }
+
+    // ─── WebGL Jar ──────────────────────────────────────────────
+    const jar = (() => {
+      const canvas = glCanvas;
+      const gl = canvas.getContext('webgl', { antialias: true, alpha: true });
+      if (!gl) return { shake() {} };
+
+      const resize = () => {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+      };
+      window.addEventListener('resize', resize);
+      resize();
+
+      const vs = `
+        attribute vec3 aPos;
+        attribute vec3 aNorm;
+        uniform mat4 uMVP;
+        uniform mat4 uModel;
+        varying vec3 vN;
+        varying vec3 vPos;
+        void main() {
+          vec4 wp = uModel * vec4(aPos, 1.0);
+          vPos = wp.xyz;
+          vN = mat3(uModel) * aNorm;
+          gl_Position = uMVP * vec4(aPos, 1.0);
+        }
+      `;
+      const fs = `
+        precision mediump float;
+        varying vec3 vN;
+        varying vec3 vPos;
+        uniform vec3 uLight;
+        void main() {
+          vec3 n = normalize(vN);
+          float diff = max(dot(n, normalize(uLight)), 0.0);
+          float fres = pow(1.0 - abs(dot(n, vec3(0.,0.,1.))), 2.2);
+          vec3 col = mix(vec3(0.55, 0.82, 0.95), vec3(0.9, 0.95, 1.0), fres);
+          col *= (0.35 + 0.65 * diff);
+          float liquid = smoothstep(-0.35, -0.15, vPos.y);
+          col = mix(col, vec3(0.3, 0.55, 0.75), liquid * 0.45);
+          gl_FragColor = vec4(col, 0.78 + fres * 0.2);
+        }
+      `;
+
+      function compile(type, src) {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        return s;
+      }
+      const prog = gl.createProgram();
+      gl.attachShader(prog, compile(gl.VERTEX_SHADER, vs));
+      gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fs));
+      gl.linkProgram(prog);
+      gl.useProgram(prog);
+
+      const positions = [], normals = [], indices = [];
+      const SEG = 28;
+
+      function ring(y, r) {
+        const base = positions.length / 3;
+        for (let i = 0; i <= SEG; i++) {
+          const a = (i / SEG) * Math.PI * 2;
+          const x = Math.cos(a) * r, z = Math.sin(a) * r;
+          positions.push(x, y, z);
+          normals.push(x, 0.15, z);
+        }
+        return base;
+      }
+
+      const b0 = ring(-0.55, 0.42);
+      const b1 = ring(0.25, 0.42);
+      const n0 = ring(0.28, 0.28);
+      const n1 = ring(0.48, 0.26);
+      const l0 = ring(0.50, 0.32);
+      const l1 = ring(0.58, 0.32);
+
+      function stitch(a, b) {
+        for (let i = 0; i < SEG; i++) {
+          indices.push(a+i, b+i, a+i+1, a+i+1, b+i, b+i+1);
+        }
+      }
+      stitch(b0, b1); stitch(b1, n0); stitch(n0, n1); stitch(n1, l0); stitch(l0, l1);
+
+      for (let i = 0; i < normals.length; i += 3) {
+        const x = positions[i], z = positions[i+2];
+        const len = Math.hypot(x, z) || 1;
+        normals[i] = x / len; normals[i+1] = 0.15; normals[i+2] = z / len;
+      }
+
+      const posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+      const normBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+      const idxBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+      const aPos = gl.getAttribLocation(prog, 'aPos');
+      const aNorm = gl.getAttribLocation(prog, 'aNorm');
+      const uMVP = gl.getUniformLocation(prog, 'uMVP');
+      const uModel = gl.getUniformLocation(prog, 'uModel');
+      const uLight = gl.getUniformLocation(prog, 'uLight');
+
+      gl.enable(gl.DEPTH_TEST);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.clearColor(0.06, 0.06, 0.08, 1);
+
+      function perspective(fovy, aspect, near, far) {
+        const f = 1 / Math.tan(fovy / 2);
+        const m = new Float32Array(16);
+        m[0] = f / aspect; m[5] = f; m[10] = (far + near) / (near - far);
+        m[11] = -1; m[14] = (2 * far * near) / (near - far);
+        return m;
+      }
+      function multiply(a, b) {
+        const o = new Float32Array(16);
+        for (let i = 0; i < 4; i++)
+          for (let j = 0; j < 4; j++)
+            o[i*4+j] = a[i*4]*b[j] + a[i*4+1]*b[4+j] + a[i*4+2]*b[8+j] + a[i*4+3]*b[12+j];
+        return o;
+      }
+      function rotateY(r) {
+        const c = Math.cos(r), s = Math.sin(r);
+        return new Float32Array([c,0,s,0, 0,1,0,0, -s,0,c,0, 0,0,0,1]);
+      }
+      function rotateX(r) {
+        const c = Math.cos(r), s = Math.sin(r);
+        return new Float32Array([1,0,0,0, 0,c,-s,0, 0,s,c,0, 0,0,0,1]);
+      }
+      function translate(x,y,z) {
+        return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]);
+      }
+
+      let rotY = 0.4, shakeAmp = 0, shakeT = 0;
+
+      function shake(intensity = 1) {
+        shakeAmp = Math.max(shakeAmp, intensity);
+      }
+
+      function render() {
+        resize();
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        const aspect = canvas.width / canvas.height;
+        const proj = perspective(0.55, aspect, 0.1, 20);
+        const view = translate(0, -0.05, -2.6);
+
+        rotY += 0.006;
+        if (shakeAmp > 0.01) {
+          shakeT += 0.18;
+          shakeAmp *= 0.92;
+        } else {
+          shakeAmp = 0; shakeT = 0;
+        }
+
+        const sx = Math.sin(shakeT * 11) * shakeAmp * 0.18;
+        const sy = Math.cos(shakeT * 9) * shakeAmp * 0.12;
+        const rx = Math.sin(shakeT * 13) * shakeAmp * 0.35;
+        const ry = rotY + Math.sin(shakeT * 7) * shakeAmp * 0.4;
+
+        let model = multiply(rotateY(ry), rotateX(rx));
+        model = multiply(translate(sx, sy, 0), model);
+        const mvp = multiply(proj, multiply(view, model));
+
+        gl.uniformMatrix4fv(uMVP, false, mvp);
+        gl.uniformMatrix4fv(uModel, false, model);
+        gl.uniform3f(uLight, 0.6, 1.2, 1.5);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+        gl.enableVertexAttribArray(aPos);
+        gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+        gl.enableVertexAttribArray(aNorm);
+        gl.vertexAttribPointer(aNorm, 3, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+        gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+
+        requestAnimationFrame(render);
+      }
+      requestAnimationFrame(render);
+      return { shake };
+    })();
+  </script>
+</body>
+</html>
