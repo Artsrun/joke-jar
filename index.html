@@ -248,7 +248,6 @@
   </div>
 
   <script>
-    // ─── i18n strings ───────────────────────────────────────────
     const UI = {
       hy: {
         hint: 'Թափահարիր հեռախոսը',
@@ -279,7 +278,6 @@
       }
     };
 
-    // ─── Jokes ──────────────────────────────────────────────────
     const JOKES = {
       hy: [
         { text: "Ինչու՞ համակարգիչը սառը է։ Որովհետև Windows-ը բաց է։", qs: ["Ինչո՞վ է սա կապված տեխնիկայի հետ։", "Կասե՞ս ավելի լավ տարբերակ։"] },
@@ -304,7 +302,6 @@
       ]
     };
 
-    // ─── State ──────────────────────────────────────────────────
     let lang = 'hy';
     let lastJoke = null;
     let shakeCooldown = false;
@@ -332,7 +329,6 @@
     }
     applyUI();
 
-    // ─── Language ───────────────────────────────────────────────
     document.querySelectorAll('.lang button').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.lang button').forEach(b => b.classList.remove('active'));
@@ -342,11 +338,9 @@
       });
     });
 
-    // ─── Permission / Motion ────────────────────────────────────
     const needsPermission = typeof DeviceMotionEvent !== 'undefined' &&
                             typeof DeviceMotionEvent.requestPermission === 'function';
 
-    // Desktop / Android that don't need explicit permission → hide overlay
     if (!needsPermission) {
       motionEnabled = true;
       window.addEventListener('devicemotion', onMotion);
@@ -394,7 +388,6 @@
       if (dx + dy + dz > SHAKE_THRESHOLD) triggerJoke();
     }
 
-    // ─── Trigger ────────────────────────────────────────────────
     function triggerJoke() {
       if (shakeCooldown) return;
       shakeCooldown = true;
@@ -439,7 +432,6 @@
       setTimeout(() => hint.classList.remove('hidden'), 1800);
     }
 
-    // ─── WebGL Jar ──────────────────────────────────────────────
     const jar = (() => {
       const canvas = glCanvas;
       const gl = canvas.getContext('webgl', { antialias: true, alpha: true });
