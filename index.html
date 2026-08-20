@@ -259,7 +259,7 @@
   </div>
 
   <script>
-    /* ── Joke Jar v4 ─────────────────────────────────────────── */
+    /* ── Joke Jar v4.1 — Spring-Damper Physics ───────────────── */
 
     const UI = {
       en: {
@@ -284,68 +284,25 @@
 
     const JOKES = {
       en: [
-        {
-          text: "Why don’t scientists trust atoms? They make up everything.",
-          qs: ["What double meaning is at work here?", "Can you write a worse science joke?"]
-        },
-        {
-          text: "I told my computer I needed a break. It went to sleep.",
-          qs: ["Is the computer polite or just lazy?", "What would your phone answer?"]
-        },
-        {
-          text: "Why was the math book sad? Too many problems.",
-          qs: ["Life joke or algebra joke?", "Add one more line."]
-        },
-        {
-          text: "A SQL query walks into a bar, sees two tables and asks: “Mind if I join you?”",
-          qs: ["INNER or LEFT join?", "Why do developers laugh at this?"]
-        },
-        {
-          text: "Programmers prefer dark mode. Light attracts bugs.",
-          qs: ["Insects or code?", "Write a light-mode version."]
-        },
-        {
-          text: "There are only 10 types of people: those who understand binary and those who don’t.",
-          qs: ["What does 10 mean here?", "Translate it for a non-tech friend."]
-        },
-        {
-          text: "Why do Java developers wear glasses? Because they can’t C#.",
-          qs: ["Which languages are being punned?", "Make a Python version."]
-        }
+        { text: "Why don’t scientists trust atoms? They make up everything.", qs: ["What double meaning is at work here?", "Can you write a worse science joke?"] },
+        { text: "I told my computer I needed a break. It went to sleep.", qs: ["Is the computer polite or just lazy?", "What would your phone answer?"] },
+        { text: "Why was the math book sad? Too many problems.", qs: ["Life joke or algebra joke?", "Add one more line."] },
+        { text: "A SQL query walks into a bar, sees two tables and asks: “Mind if I join you?”", qs: ["INNER or LEFT join?", "Why do developers laugh at this?"] },
+        { text: "Programmers prefer dark mode. Light attracts bugs.", qs: ["Insects or code?", "Write a light-mode version."] },
+        { text: "There are only 10 types of people: those who understand binary and those who don’t.", qs: ["What does 10 mean here?", "Translate it for a non-tech friend."] },
+        { text: "Why do Java developers wear glasses? Because they can’t C#.", qs: ["Which languages are being punned?", "Make a Python version."] }
       ],
       ru: [
-        {
-          text: "Почему программисты путают Хэллоуин и Рождество? Oct 31 = Dec 25.",
-          qs: ["Объясни без цифр.", "Какая система счисления здесь ключевая?"]
-        },
-        {
-          text: "Заходит в бар бесконечное количество математиков…",
-          qs: ["Чем обычно заканчивается эта шутка?", "Почему бесконечность смешна?"]
-        },
-        {
-          text: "Кот всегда падает на лапы, тост — маслом вниз. Квантовая механика.",
-          qs: ["Физика или философия?", "Придумай третий объект."]
-        },
-        {
-          text: "Программист ставит будильник на 8:00. Просыпается в 7:59: «Ещё есть время».",
-          qs: ["Знакомо?", "Что бы ты изменил в шутке?"]
-        },
-        {
-          text: "Сколько программистов нужно, чтобы вкрутить лампочку? Ноль. Это hardware.",
-          qs: ["Почему не software?", "Сделай версию про дизайнеров."]
-        },
-        {
-          text: "Есть только 10 типов людей: те, кто понимает двоичную систему, и те, кто нет.",
-          qs: ["Что значит 10?", "Объясни другу без IT."]
-        },
-        {
-          text: "Java-разработчики носят очки, потому что не видят C#.",
-          qs: ["Какие языки обыгрываются?", "Придумай версию про Python."]
-        }
+        { text: "Почему программисты путают Хэллоуин и Рождество? Oct 31 = Dec 25.", qs: ["Объясни без цифр.", "Какая система счисления здесь ключевая?"] },
+        { text: "Заходит в бар бесконечное количество математиков…", qs: ["Чем обычно заканчивается эта шутка?", "Почему бесконечность смешна?"] },
+        { text: "Кот всегда падает на лапы, тост — маслом вниз. Квантовая механика.", qs: ["Физика или философия?", "Придумай третий объект."] },
+        { text: "Программист ставит будильник на 8:00. Просыпается в 7:59: «Ещё есть время».", qs: ["Знакомо?", "Что бы ты изменил в шутке?"] },
+        { text: "Сколько программистов нужно, чтобы вкрутить лампочку? Ноль. Это hardware.", qs: ["Почему не software?", "Сделай версию про дизайнеров."] },
+        { text: "Есть только 10 типов людей: те, кто понимает двоичную систему, и те, кто нет.", qs: ["Что значит 10?", "Объясни другу без IT."] },
+        { text: "Java-разработчики носят очки, потому что не видят C#.", qs: ["Какие языки обыгрываются?", "Придумай версию про Python."] }
       ]
     };
 
-    // ── State ───────────────────────────────────────────────────
     let lang = 'en';
     let lastJoke = null;
     let cooldown = false;
@@ -373,7 +330,6 @@
     }
     applyUI();
 
-    // Language
     document.querySelectorAll('.lang button').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.lang button').forEach(b => b.classList.remove('active'));
@@ -383,7 +339,6 @@
       });
     });
 
-    // Motion permission
     const needsPerm = typeof DeviceMotionEvent !== 'undefined' &&
                       typeof DeviceMotionEvent.requestPermission === 'function';
 
@@ -420,9 +375,8 @@
       else trigger();
     });
 
-    // Shake detection with intensity
     let lx = 0, ly = 0, lz = 0;
-    const THRESHOLD = 15;
+    const THRESHOLD = 14;
 
     function onMotion(e) {
       const a = e.accelerationIncludingGravity;
@@ -433,17 +387,17 @@
       lx = a.x; ly = a.y; lz = a.z;
       const force = dx + dy + dz;
       if (force > THRESHOLD) {
-        const intensity = Math.min(2.2, 0.9 + force / 40);
+        const intensity = Math.min(2.6, 0.7 + force / 28);
         trigger(intensity);
       }
     }
 
-    function trigger(intensity = 1.3) {
+    function trigger(intensity = 1.4) {
       if (cooldown) return;
       cooldown = true;
-      setTimeout(() => cooldown = false, 1300);
+      setTimeout(() => cooldown = false, 1100);
 
-      if (navigator.vibrate) navigator.vibrate([30, 20, 40]);
+      if (navigator.vibrate) navigator.vibrate([25, 18, 45]);
 
       jar.shake(intensity);
 
@@ -480,7 +434,6 @@
       setTimeout(() => hint.classList.remove('hidden'), 1600);
     }
 
-    // ── WebGL Jar + improved shake ──────────────────────────────
     const jar = (() => {
       const gl = canvas.getContext('webgl', { antialias: true, alpha: true });
       if (!gl) return { shake() {} };
@@ -537,7 +490,6 @@
       gl.linkProgram(prog);
       gl.useProgram(prog);
 
-      // Geometry
       const pos = [], nor = [], idx = [];
       const SEG = 32;
 
@@ -596,7 +548,6 @@
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.clearColor(0.043, 0.051, 0.07, 1);
 
-      // Matrix helpers
       function perspective(fovy, aspect, near, far) {
         const f = 1 / Math.tan(fovy / 2);
         const m = new Float32Array(16);
@@ -632,18 +583,77 @@
         return new Float32Array([s, 0, 0, 0, 0, s, 0, 0, 0, 0, s, 0, 0, 0, 0, 1]);
       }
 
-      // Shake state
-      let idleY = 0.35;
-      let amp = 0;
-      let t = 0;
-      let scalePulse = 1;
+      /* ── Spring-Damper Physics ───────────────────────────────
+         a = -k * x - d * v + impulse
+         v += a * dt
+         x += v * dt
+         ──────────────────────────────────────────────────── */
+      const phys = {
+        x: 0, y: 0, z: 0,
+        vx: 0, vy: 0, vz: 0,
+        rx: 0, ry: 0, rz: 0,
+        wrx: 0, wry: 0, wrz: 0,
+        s: 1, vs: 0,
+        idleY: 0.35
+      };
+
+      const K_POS = 48;
+      const D_POS = 9.5;
+      const K_ROT = 36;
+      const D_ROT = 7.2;
+      const K_SCL = 60;
+      const D_SCL = 11;
+      const MAX_IMPULSE = 2.8;
+
+      let lastTs = 0;
 
       function shake(intensity = 1.2) {
-        amp = Math.max(amp, intensity);
-        scalePulse = 1 + intensity * 0.06;
+        const f = Math.min(intensity, MAX_IMPULSE);
+        const ax = (Math.random() - 0.5) * 2;
+        const ay = (Math.random() - 0.5) * 2;
+        const az = (Math.random() - 0.5) * 2;
+        const len = Math.hypot(ax, ay, az) || 1;
+
+        phys.vx  += (ax / len) * f * 1.8;
+        phys.vy  += (ay / len) * f * 1.1;
+        phys.vz  += (az / len) * f * 0.7;
+
+        phys.wrx += (Math.random() - 0.5) * f * 3.2;
+        phys.wry += (Math.random() - 0.5) * f * 2.4;
+        phys.wrz += (Math.random() - 0.5) * f * 2.8;
+
+        phys.vs  -= f * 0.35;
       }
 
-      function render() {
+      function step(dt) {
+        dt = Math.min(dt, 0.033);
+
+        phys.vx += (-K_POS * phys.x - D_POS * phys.vx) * dt;
+        phys.vy += (-K_POS * phys.y - D_POS * phys.vy) * dt;
+        phys.vz += (-K_POS * phys.z - D_POS * phys.vz) * dt;
+        phys.x  += phys.vx * dt;
+        phys.y  += phys.vy * dt;
+        phys.z  += phys.vz * dt;
+
+        phys.wrx += (-K_ROT * phys.rx - D_ROT * phys.wrx) * dt;
+        phys.wry += (-K_ROT * phys.ry - D_ROT * phys.wry) * dt;
+        phys.wrz += (-K_ROT * phys.rz - D_ROT * phys.wrz) * dt;
+        phys.rx  += phys.wrx * dt;
+        phys.ry  += phys.wry * dt;
+        phys.rz  += phys.wrz * dt;
+
+        phys.vs  += (-K_SCL * (phys.s - 1) - D_SCL * phys.vs) * dt;
+        phys.s   += phys.vs * dt;
+
+        phys.idleY += 0.55 * dt;
+      }
+
+      function render(ts) {
+        if (!lastTs) lastTs = ts;
+        const dt = (ts - lastTs) / 1000;
+        lastTs = ts;
+
+        step(dt);
         resize();
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -651,30 +661,10 @@
         const proj = perspective(0.52, aspect, 0.1, 20);
         const view = translate(0, -0.04, -2.55);
 
-        idleY += 0.0055;
-
-        if (amp > 0.008) {
-          t += 0.22;
-          amp *= 0.905;                 // slower decay = longer shake
-          scalePulse += (1 - scalePulse) * 0.12;
-        } else {
-          amp = 0;
-          t = 0;
-          scalePulse = 1;
-        }
-
-        // Multi-axis chaotic motion
-        const sx = Math.sin(t * 13.1) * amp * 0.22;
-        const sy = Math.cos(t * 9.7)  * amp * 0.14;
-        const sz = Math.sin(t * 11.3) * amp * 0.08;
-        const rx = Math.sin(t * 15.2) * amp * 0.42;
-        const ry = idleY + Math.sin(t * 8.4) * amp * 0.55;
-        const rz = Math.cos(t * 12.6) * amp * 0.28;
-
-        let model = mul(rotY(ry), rotX(rx));
-        model = mul(rotZ(rz), model);
-        model = mul(scale(scalePulse), model);
-        model = mul(translate(sx, sy + sz * 0.3, 0), model);
+        let model = mul(rotY(phys.idleY + phys.ry), rotX(phys.rx));
+        model = mul(rotZ(phys.rz), model);
+        model = mul(scale(phys.s), model);
+        model = mul(translate(phys.x, phys.y, phys.z * 0.4), model);
 
         const mvp = mul(proj, mul(view, model));
 
