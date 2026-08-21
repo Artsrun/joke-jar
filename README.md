@@ -1,8 +1,8 @@
 # Joke Jar 🫙
 
-Mobile-first **Joke Jar** — shake your phone, get a short joke in **Armenian / English / Russian**.
+Mobile-first **Joke Jar** — shake your phone, get a short joke in **English / Russian**.
 
-Pure vanilla HTML + CSS + JS + WebGL. No frameworks.
+Pure vanilla HTML + CSS + JS + WebGL2. No frameworks, no build step, one file.
 
 ## Live
 
@@ -16,9 +16,18 @@ Any push to `main` or manual **workflow_dispatch** deploys the static site to Gi
 
 ## Features
 
-- Device shake detection (iOS permission gate)
-- WebGL glass jar that reacts to shake
-- 3 languages + localized UI / jokes / follow-up questions
-- Tap fallback + haptic feedback
+- Shake detection, with tap and keyboard as equal paths (no gesture is required)
+- WebGL2 glass jar with spring-damper physics and a transform-feedback particle burst
+- 2 languages: localized UI, jokes and follow-up questions
+- Light / dark / system theme
+- Respects `prefers-reduced-motion` and `prefers-contrast`
+- Haptic feedback, copy / share, installable PWA with offline support
+
+## Accessibility
+
+The jar is a real `<button>`: focusable, labelled, and operable with Enter or
+Space. Every drawn joke is announced through a live region. Pinch-zoom is not
+blocked. With `prefers-reduced-motion: reduce` the render loop is stopped and
+the jar is drawn as a single static frame — the app stays fully usable.
 
 Made for quick laughs.

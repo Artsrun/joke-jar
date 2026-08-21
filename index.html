@@ -1,78 +1,268 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <!-- Zoom deliberately left enabled: pinch-to-zoom is an accessibility right (WCAG 1.4.4). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#0b0d12" />
+  <meta name="color-scheme" content="light dark" />
+  <meta id="theme-color" name="theme-color" content="#0b0d12" />
+  <meta name="description" content="Shake your phone, get a short joke. English and Russian." />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <title>Joke Jar v4.3</title>
+  <title>Joke Jar</title>
   <style>
+    /* ---------- tokens ---------------------------------------------------- */
     :root {
       --bg: #0b0d12; --surface: #151922; --surface-2: #1c2230; --border: #2a3344;
-      --accent: #6ecbff; --accent-soft: rgba(110,203,255,.12); --text: #e8eef7; --muted: #8b97ab; --radius: 18px;
+      --accent: #6ecbff; --accent-ink: #081018; --accent-soft: rgba(110,203,255,.12);
+      --accent-line: rgba(110,203,255,.25);
+      --text: #e8eef7; --muted: #8b97ab;
+      --radius: 18px; --shadow: 0 12px 40px rgba(0,0,0,.4);
+      --focus: #6ecbff;
+      /* One type ramp, fluid, so nothing is hard-coded per breakpoint. */
+      --fs-xs: .72rem; --fs-sm: .8rem; --fs-md: clamp(.95rem, .9rem + .3vw, 1.1rem);
+      --fs-lg: 1.35rem;
     }
+    :root[data-resolved="light"] {
+      --bg: #f4f7fb; --surface: #ffffff; --surface-2: #eef3f9; --border: #d3dde9;
+      --accent: #0a6fa8; --accent-ink: #ffffff; --accent-soft: rgba(10,111,168,.10);
+      --accent-line: rgba(10,111,168,.28);
+      --text: #101720; --muted: #566072;
+      --shadow: 0 12px 32px rgba(16,23,32,.13);
+      --focus: #0a6fa8;
+      color-scheme: light;
+    }
+    :root[data-resolved="dark"] { color-scheme: dark; }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-    #app { height: 100%; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); position: relative; }
-    header { flex-shrink: 0; text-align: center; padding: 16px 0 10px; }
-    .brand { display: flex; align-items: center; justify-content: center; gap: 8px; }
-    h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -.03em; }
-    .ver { font-size: .65rem; font-weight: 700; color: var(--accent); background: var(--accent-soft); border: 1px solid rgba(110,203,255,.25); padding: 2px 7px; border-radius: 999px; }
-    .sub { margin-top: 4px; font-size: .72rem; color: var(--muted); }
-    .lang { display: flex; gap: 6px; justify-content: center; margin-top: 12px; }
-    .lang button { min-height: 34px; padding: 6px 16px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: .75rem; font-weight: 600; cursor: pointer; }
-    .lang button.active { background: var(--accent); border-color: var(--accent); color: #081018; }
+    html, body {
+      height: 100%; background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+      /* Stops a vigorous shake from triggering pull-to-refresh or rubber-banding. */
+      overscroll-behavior: none;
+    }
+    body { overflow: hidden; }
+
+    :focus-visible { outline: 2.5px solid var(--focus); outline-offset: 3px; border-radius: 8px; }
+
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+      border: 0; clip-path: inset(50%); overflow: hidden; white-space: nowrap;
+    }
+
+    /* ---------- layout ---------------------------------------------------- */
+    #app {
+      height: 100%; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column;
+      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); position: relative;
+    }
+    header { flex-shrink: 0; text-align: center; padding: 14px 0 8px; }
+    .bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    h1 { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -.03em; }
+    .sub { margin-top: 4px; font-size: var(--fs-xs); color: var(--muted); }
+
+    /* ---------- controls -------------------------------------------------- */
+    .lang { display: flex; gap: 6px; }
+    .lang button, .icon-btn {
+      min-height: 40px; border-radius: 999px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); font-size: var(--fs-sm);
+      font-weight: 600; cursor: pointer; transition: background .16s, color .16s, border-color .16s;
+    }
+    .lang button { min-width: 48px; padding: 6px 16px; }
+    .lang button:hover { color: var(--text); }
+    .lang button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    .icon-btn { display: grid; place-items: center; width: 40px; }
+    .icon-btn svg { width: 19px; height: 19px; grid-area: 1/1; display: none; }
+    :root[data-theme="auto"]  .i-auto,
+    :root[data-theme="light"] .i-light,
+    :root[data-theme="dark"]  .i-dark { display: block; }
+
+    /* ---------- stage ----------------------------------------------------- */
     #stage { flex: 1 1 auto; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; }
+
+    /* The jar is a real button: focusable, labelled, keyboard-operable.
+       Previously the only trigger was a click handler on the bare <canvas>,
+       which no keyboard or screen-reader user could ever reach. */
+    #jar-btn {
+      appearance: none; border: 0; background: transparent; padding: 0; margin: 0;
+      width: 100%; height: 100%; display: block; cursor: pointer; color: inherit;
+      border-radius: var(--radius);
+    }
     #gl { width: 100%; height: 100%; max-height: min(46vh, 320px); display: block; touch-action: none; }
-    #hint { position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%); font-size: .78rem; color: var(--muted); background: rgba(11,13,18,.65); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 999px; border: 1px solid rgba(42,51,68,.7); pointer-events: none; transition: opacity .3s; white-space: nowrap; }
+    #fallback { display: none; place-items: center; height: 100%; }
+    #fallback img { width: min(52%, 190px); height: auto; opacity: .92; }
+    body.no-webgl #gl { display: none; }
+    body.no-webgl #fallback { display: grid; }
+
+    #hint {
+      position: absolute; bottom: 4%; left: 50%; transform: translateX(-50%);
+      font-size: var(--fs-sm); color: var(--muted);
+      background: var(--surface);
+      background: color-mix(in srgb, var(--bg) 72%, transparent);
+      backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 999px;
+      border: 1px solid var(--border); pointer-events: none; transition: opacity .3s; white-space: nowrap;
+    }
     #hint.hidden { opacity: 0; }
-    #output { flex-shrink: 0; padding-bottom: 14px; }
-    #joke-card { display: none; background: linear-gradient(165deg, var(--surface-2), var(--surface)); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.4); animation: rise .32s cubic-bezier(.2,1.1,.3,1); }
-    #joke-card.show { display: block; }
+
+    /* ---------- output ---------------------------------------------------- */
+    /* Scrollable so a long joke, or a user's enlarged text, is never clipped. */
+    #output { flex-shrink: 0; padding-bottom: 14px; max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; }
+    #joke-card {
+      display: none; background: linear-gradient(165deg, var(--surface-2), var(--surface));
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+    }
+    #joke-card.show { display: block; animation: rise .32s cubic-bezier(.2,1.1,.3,1); }
     @keyframes rise { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
-    #joke-text { font-size: 1.05rem; line-height: 1.5; margin-bottom: 12px; }
-    .qs-list p { font-size: .78rem; color: var(--accent); line-height: 1.35; margin-bottom: 5px; }
-    .actions { display: flex; gap: 8px; margin-top: 12px; }
-    .actions button { flex: 1; min-height: 46px; border-radius: 13px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: .82rem; font-weight: 600; cursor: pointer; }
-    .actions button.primary { background: var(--accent); border-color: var(--accent); color: #081018; }
-    #perm { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; background: rgba(11,13,18,.94); backdrop-filter: blur(10px); }
-    #perm.hidden { display: none; }
-    #perm .icon { font-size: 2.5rem; }
-    #perm .title { font-size: 1.15rem; font-weight: 700; }
-    #perm .desc { font-size: .8rem; color: var(--muted); max-width: 240px; }
-    #perm button { margin-top: 6px; min-height: 48px; padding: 0 30px; border: none; border-radius: 999px; background: var(--accent); color: #081018; font-size: 1rem; font-weight: 700; cursor: pointer; }
+    #joke-text { font-size: var(--fs-md); line-height: 1.5; }
+
+    .qs-title { margin-top: 12px; font-size: var(--fs-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+    /* These are conversation prompts, not controls. They used to be accent-coloured
+       with a "→", which read as tappable. Quieter styling stops the affordance lie. */
+    .qs-list { list-style: none; margin-top: 6px; display: grid; gap: 4px; }
+    .qs-list li { font-size: var(--fs-sm); color: var(--muted); line-height: 1.4; padding-left: 14px; position: relative; }
+    .qs-list li::before { content: "·"; position: absolute; left: 4px; color: var(--accent); font-weight: 700; }
+
+    .actions { display: flex; gap: 8px; margin-top: 14px; }
+    .actions button {
+      flex: 1; min-height: 46px; border-radius: 13px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: var(--fs-sm); font-weight: 600;
+      cursor: pointer; transition: opacity .16s, transform .1s;
+    }
+    .actions button:active { transform: scale(.98); }
+    .actions button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    .actions button[disabled] { opacity: .45; cursor: default; transform: none; }
+
+    /* ---------- enable-shake pill ----------------------------------------- */
+    /* Replaces the old full-screen permission wall. That overlay was shown before
+       anything else and, if the user denied motion, never went away — the app was
+       unusable with no way out. Now the app works on tap from the first frame and
+       motion is an optional upgrade offered here. */
+    #enable-wrap { flex-shrink: 0; display: none; justify-content: center; padding-bottom: 10px; }
+    #enable-wrap.show { display: flex; }
+    #enable {
+      min-height: 40px; padding: 0 18px; border-radius: 999px; cursor: pointer;
+      border: 1px dashed var(--accent-line); background: var(--accent-soft);
+      color: var(--accent); font-size: var(--fs-sm); font-weight: 600;
+    }
+
+    /* ---------- toast ----------------------------------------------------- */
+    #toast {
+      position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 22px);
+      transform: translate(-50%, 8px); z-index: 40; padding: 9px 16px; border-radius: 999px;
+      background: var(--text); color: var(--bg); font-size: var(--fs-sm); font-weight: 600;
+      box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .22s, transform .22s;
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* ---------- landscape / short viewports ------------------------------- */
+    /* The installed PWA is portrait-locked, but in-browser landscape must still
+       be usable: shrink the stage rather than letting the card get pushed off. */
+    @media (orientation: landscape) and (max-height: 560px) {
+      #app { max-width: 620px; }
+      header { padding: 8px 0 4px; }
+      .sub { display: none; }
+      #gl { max-height: 38vh; }
+      #output { max-height: 46vh; }
+    }
+
+    /* ---------- reduced motion -------------------------------------------- */
+    /* The WebGL loop is stopped entirely in JS; this covers the DOM animations.
+       Feedback is preserved (the card still appears) — it just stops travelling. */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+      #joke-card.show { animation: none; }
+    }
+
+    @media (prefers-contrast: more) {
+      :root { --border: currentColor; --muted: var(--text); }
+      #hint, #joke-card { backdrop-filter: none; }
+    }
   </style>
 </head>
 <body>
   <div id="app">
     <header>
-      <div class="brand"><h1>Joke Jar</h1><span class="ver">v4.3</span></div>
-      <div class="sub">GPU Particles · Shake · Laugh</div>
-      <div class="lang">
-        <button data-lang="en" class="active">EN</button>
-        <button data-lang="ru">RU</button>
+      <div class="bar">
+        <div class="lang" role="group" id="lang-group" aria-label="Language">
+          <button type="button" data-lang="en" lang="en" aria-pressed="true">EN</button>
+          <button type="button" data-lang="ru" lang="ru" aria-pressed="false">RU</button>
+        </div>
+        <h1>Joke Jar</h1>
+        <button type="button" class="icon-btn" id="theme-btn" aria-label="Change theme">
+          <svg class="i-auto" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.6a8.4 8.4 0 0 1 0 16.8Z" fill="currentColor"/></svg>
+          <svg class="i-light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.4" fill="currentColor"/><g stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 2.6v2.1M12 19.3v2.1M2.6 12h2.1M19.3 12h2.1M5.3 5.3l1.5 1.5M17.2 17.2l1.5 1.5M18.7 5.3l-1.5 1.5M6.8 17.2l-1.5 1.5"/></g></svg>
+          <svg class="i-dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.5 8.5 0 1 0 10.2 10.2Z" fill="currentColor"/></svg>
+        </button>
       </div>
+      <p class="sub" id="sub">Shake it. Read it. Laugh.</p>
     </header>
-    <div id="stage"><canvas id="gl"></canvas><div id="hint">Shake the device</div></div>
-    <div id="output"><div id="joke-card"><div id="joke-text"></div><div class="qs-list" id="qs-list"></div><div class="actions" id="actions"></div></div></div>
+
+    <div id="stage">
+      <button type="button" id="jar-btn" aria-label="Take a joke">
+        <canvas id="gl" aria-hidden="true"></canvas>
+        <!-- Shown when WebGL2 is unavailable, so the stage is never just blank. -->
+        <div id="fallback" aria-hidden="true"><img src="icon.svg" alt="" width="512" height="512" /></div>
+      </button>
+      <div id="hint" aria-hidden="true">Shake the device</div>
+    </div>
+
+    <div id="enable-wrap">
+      <button type="button" id="enable">Enable shake</button>
+    </div>
+
+    <div id="output">
+      <div id="joke-card">
+        <p id="joke-text" lang="en"></p>
+        <p class="qs-title" id="qs-title" hidden>Think about it</p>
+        <ul class="qs-list" id="qs-list"></ul>
+        <div class="actions">
+          <button type="button" id="copy-btn">Copy</button>
+          <button type="button" id="next-btn" class="primary">Next joke</button>
+        </div>
+      </div>
+    </div>
   </div>
-  <div id="perm">
-    <div class="icon">🫙</div>
-    <div class="title" id="perm-title">Enable motion</div>
-    <div class="desc" id="perm-desc">Required to detect device shake</div>
-    <button id="enable">Enable</button>
-  </div>
+
+  <!-- The joke announcement lives outside the card and is always rendered.
+       A live region inside a display:none element does not reliably fire when
+       it is populated and revealed in the same task — which is exactly what
+       happens on every draw. -->
+  <p class="sr-only" id="announce" aria-live="polite" aria-atomic="true"></p>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
   <script>
-  /* Joke Jar v4.3 — WebGL2 Transform Feedback GPU particles */
+  /* Joke Jar — WebGL2 transform-feedback GPU particles, vanilla JS, no deps. */
+
+  /* ===================== content ======================================== */
   const UI = {
-    en: { hint:'Shake the device', hintAgain:'Shake again', permTitle:'Enable motion', permDesc:'Required to detect device shake', enable:'Enable', interesting:'Interesting', next:'Next joke' },
-    ru: { hint:'Потряси телефон', hintAgain:'Потряси ещё', permTitle:'Разрешить движение', permDesc:'Нужно, чтобы ловить тряску', enable:'Разрешить', interesting:'Интересно', next:'Ещё' }
+    en: {
+      sub: 'Shake it. Read it. Laugh.', hint: 'Shake the device', hintAgain: 'Shake again',
+      hintTap: 'Tap the jar', hintTapAgain: 'Tap for another', enable: 'Enable shake',
+      next: 'Next joke', copy: 'Copy', share: 'Share', qsTitle: 'Think about it',
+      copied: 'Copied', copyFail: 'Could not copy', shakeOn: 'Shake enabled',
+      shakeOff: 'Motion blocked — tap the jar instead', jarLabel: 'Take a joke',
+      langLabel: 'Language', themeLabel: 'Change theme',
+      themeAuto: 'Theme: system', themeLight: 'Theme: light', themeDark: 'Theme: dark'
+    },
+    ru: {
+      sub: 'Потряси. Прочитай. Смейся.', hint: 'Потряси телефон', hintAgain: 'Потряси ещё',
+      hintTap: 'Нажми на банку', hintTapAgain: 'Нажми ещё раз', enable: 'Включить тряску',
+      next: 'Ещё', copy: 'Копировать', share: 'Поделиться', qsTitle: 'Подумай',
+      copied: 'Скопировано', copyFail: 'Не удалось скопировать', shakeOn: 'Тряска включена',
+      shakeOff: 'Движение заблокировано — нажимай на банку', jarLabel: 'Достать шутку',
+      langLabel: 'Язык', themeLabel: 'Сменить тему',
+      themeAuto: 'Тема: системная', themeLight: 'Тема: светлая', themeDark: 'Тема: тёмная'
+    }
   };
+
   const JOKES = {
     en: [
       { text:"Why don’t scientists trust atoms? They make up everything.", qs:["What double meaning is at work here?","Can you write a worse science joke?"] },
@@ -94,108 +284,344 @@
     ]
   };
 
-  let lang='en', lastJoke=null, cooldown=false, motionOn=false, shown=false;
-  const $=s=>document.querySelector(s);
-  const canvas=$('#gl'), card=$('#joke-card'), jokeEl=$('#joke-text'), qsEl=$('#qs-list'), actEl=$('#actions');
-  const hint=$('#hint'), perm=$('#perm'), enableBtn=$('#enable'), permTitle=$('#perm-title'), permDesc=$('#perm-desc');
+  /* ===================== state & helpers ================================ */
+  const $ = s => document.querySelector(s);
+  const store = {
+    get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
+  };
 
-  function applyUI(){ const t=UI[lang]; hint.textContent=shown?t.hintAgain:t.hint; permTitle.textContent=t.permTitle; permDesc.textContent=t.permDesc; enableBtn.textContent=t.enable; }
-  applyUI();
-  document.querySelectorAll('.lang button').forEach(btn=>{
-    btn.addEventListener('click',()=>{ document.querySelectorAll('.lang button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); lang=btn.dataset.lang; applyUI(); });
+  const reduceMQ = matchMedia('(prefers-reduced-motion: reduce)');
+  const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+  let reduced = reduceMQ.matches;
+
+  const canvas = $('#gl'), card = $('#joke-card'), jokeEl = $('#joke-text');
+  const qsEl = $('#qs-list'), qsTitle = $('#qs-title'), hint = $('#hint'), sub = $('#sub');
+  const jarBtn = $('#jar-btn'), nextBtn = $('#next-btn'), copyBtn = $('#copy-btn');
+  const enableWrap = $('#enable-wrap'), enableBtn = $('#enable'), themeBtn = $('#theme-btn');
+  const toastEl = $('#toast'), themeMeta = $('#theme-color'), announce = $('#announce');
+
+  const savedLang = store.get('lang', '');
+  let lang = UI[savedLang] ? savedLang
+           : (navigator.language || '').toLowerCase().startsWith('ru') ? 'ru' : 'en';
+  let shown = false, cooldown = false, motionOn = false, motionSeen = false, current = null;
+
+  const t = () => UI[lang];
+
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._id);
+    toast._id = setTimeout(() => toastEl.classList.remove('show'), 2000);
+  }
+
+  /* ===================== theme ========================================== */
+  /* data-theme is the user's choice (auto|light|dark); data-resolved is what
+     that means right now. Keeping them separate means "auto" needs no second
+     copy of the palette. */
+  let theme = ['auto', 'light', 'dark'].includes(store.get('theme', 'auto')) ? store.get('theme', 'auto') : 'auto';
+
+  function applyTheme() {
+    const resolved = theme === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : theme;
+    const root = document.documentElement;
+    root.dataset.theme = theme;
+    root.dataset.resolved = resolved;
+    themeMeta.setAttribute('content', resolved === 'dark' ? '#0b0d12' : '#f4f7fb');
+    themeBtn.setAttribute('aria-label',
+      t()[theme === 'auto' ? 'themeAuto' : theme === 'light' ? 'themeLight' : 'themeDark']);
+    jar.setTheme(resolved === 'dark' ? 1 : 0);
+  }
+  themeBtn.addEventListener('click', () => {
+    theme = theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto';
+    store.set('theme', theme);
+    applyTheme();
+    toast(t()[theme === 'auto' ? 'themeAuto' : theme === 'light' ? 'themeLight' : 'themeDark']);
+  });
+  darkMQ.addEventListener('change', () => { if (theme === 'auto') applyTheme(); });
+
+  /* ===================== language ======================================= */
+  function applyUI() {
+    const s = t();
+    document.documentElement.lang = lang;
+    sub.textContent = s.sub;
+    hint.textContent = motionOn && motionSeen
+      ? (shown ? s.hintAgain : s.hint)
+      : (shown ? s.hintTapAgain : s.hintTap);
+    jarBtn.setAttribute('aria-label', s.jarLabel);
+    $('#lang-group').setAttribute('aria-label', s.langLabel);
+    enableBtn.textContent = s.enable;
+    nextBtn.textContent = s.next;
+    copyBtn.textContent = canShare() ? s.share : s.copy;
+    qsTitle.textContent = s.qsTitle;
+    applyTheme();
+  }
+
+  document.querySelectorAll('.lang button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.lang === lang) return;
+      lang = btn.dataset.lang;
+      store.set('lang', lang);
+      document.querySelectorAll('.lang button').forEach(b =>
+        b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+      applyUI();
+      // Re-draw in the new language: leaving a Russian joke on screen after
+      // switching to EN (the old behaviour) left the UI in two languages at once.
+      if (shown) draw({ silent: true });
+    });
   });
 
-  const needsPerm = typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function';
-  if(!needsPerm){ motionOn=true; window.addEventListener('devicemotion', onMotion); perm.classList.add('hidden'); }
-  async function requestMotion(){
-    if(needsPerm){ try{ const r=await DeviceMotionEvent.requestPermission(); if(r==='granted'){ motionOn=true; window.addEventListener('devicemotion', onMotion); perm.classList.add('hidden'); } } catch{ motionOn=true; window.addEventListener('devicemotion', onMotion); perm.classList.add('hidden'); } }
-    else { motionOn=true; window.addEventListener('devicemotion', onMotion); perm.classList.add('hidden'); }
-  }
-  enableBtn.addEventListener('click', requestMotion);
-  canvas.addEventListener('click', ()=>{ if(!motionOn) requestMotion(); else trigger(); });
+  /* ===================== deck =========================================== */
+  /* A shuffled deck per language instead of Math.random each time. With a pool
+     of seven, plain random repeated a joke roughly every other draw. */
+  const decks = {}, lastIdx = {};
 
-  let lx=0,ly=0,lz=0;
-  function onMotion(e){
-    const a=e.accelerationIncludingGravity; if(!a) return;
-    const force=Math.abs(a.x-lx)+Math.abs(a.y-ly)+Math.abs(a.z-lz);
-    lx=a.x; ly=a.y; lz=a.z;
-    if(force>14) trigger(Math.min(2.6, 0.7+force/28));
-  }
-
-  function trigger(intensity=1.4){
-    if(cooldown) return; cooldown=true; setTimeout(()=>cooldown=false, 1100);
-    if(navigator.vibrate) navigator.vibrate([25,18,45]);
-    jar.shake(intensity);
-    const pool=JOKES[lang];
-    let joke=pool[Math.floor(Math.random()*pool.length)];
-    if(pool.length>1 && lastJoke && joke.text===lastJoke.text) joke=pool[(pool.indexOf(joke)+1)%pool.length];
-    lastJoke=joke; shown=true; applyUI();
-    jokeEl.textContent=joke.text;
-    qsEl.innerHTML=''; joke.qs.forEach(q=>{ const p=document.createElement('p'); p.textContent='→ '+q; qsEl.appendChild(p); });
-    const t=UI[lang]; actEl.innerHTML='';
-    const b1=document.createElement('button'); b1.textContent=t.interesting; b1.onclick=()=>{ b1.style.opacity='0.5'; };
-    const b2=document.createElement('button'); b2.className='primary'; b2.textContent=t.next; b2.onclick=()=>trigger();
-    actEl.append(b1,b2);
-    card.classList.add('show'); hint.classList.add('hidden'); setTimeout(()=>hint.classList.remove('hidden'),1600);
+  function refill(l) {
+    const idx = JOKES[l].map((_, i) => i);
+    for (let i = idx.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [idx[i], idx[j]] = [idx[j], idx[i]];
+    }
+    // Don't let a reshuffle hand back the joke we just showed.
+    if (idx.length > 1 && idx[idx.length - 1] === lastIdx[l]) {
+      [idx[idx.length - 1], idx[0]] = [idx[0], idx[idx.length - 1]];
+    }
+    decks[l] = idx;
   }
 
-  const jar = (()=>{
-    const gl = canvas.getContext('webgl2', { antialias:true, alpha:true });
-    if(!gl){ console.warn('WebGL2 required'); return { shake(){} }; }
+  function pick(l) {
+    if (!decks[l] || !decks[l].length) refill(l);
+    const i = decks[l].pop();
+    lastIdx[l] = i;
+    return JOKES[l][i];
+  }
 
-    const resize=()=>{ const dpr=Math.min(devicePixelRatio||1,2); canvas.width=canvas.clientWidth*dpr; canvas.height=canvas.clientHeight*dpr; gl.viewport(0,0,canvas.width,canvas.height); };
-    addEventListener('resize', resize); resize();
+  /* ===================== draw a joke ==================================== */
+  function draw({ intensity = 1.4, silent = false } = {}) {
+    if (!silent) {
+      if (cooldown) return;
+      cooldown = true;
+      nextBtn.disabled = true;           // visible feedback instead of a silent no-op
+      setTimeout(() => { cooldown = false; nextBtn.disabled = false; }, 850);
+      if (navigator.vibrate && !reduced) { try { navigator.vibrate([25, 18, 45]); } catch {} }
+      jar.shake(intensity);
+    }
 
-    function compile(type, src){ const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s); if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s)); return s; }
+    current = pick(lang);
+    shown = true;
 
-    const jarVS=`attribute vec3 aPos; attribute vec3 aNorm; uniform mat4 uMVP; uniform mat4 uModel; varying vec3 vN; varying vec3 vPos;
+    jokeEl.lang = lang;                  // so a screen reader uses the right voice
+    jokeEl.textContent = current.text;
+    announce.lang = lang;
+    announce.textContent = current.text;
+
+    qsEl.replaceChildren();
+    current.qs.forEach(q => {
+      const li = document.createElement('li');
+      li.textContent = q;
+      qsEl.appendChild(li);
+    });
+    qsTitle.hidden = current.qs.length === 0;
+
+    card.classList.add('show');
+    hint.textContent = motionOn && motionSeen ? t().hintAgain : t().hintTapAgain;
+    hint.classList.add('hidden');
+    clearTimeout(draw._hid);
+    draw._hid = setTimeout(() => hint.classList.remove('hidden'), 1600);
+  }
+
+  jarBtn.addEventListener('click', () => draw());
+  nextBtn.addEventListener('click', () => draw());
+
+  /* ===================== copy / share =================================== */
+  function canShare() { return typeof navigator.share === 'function'; }
+
+  copyBtn.addEventListener('click', async () => {
+    if (!current) return;
+    if (canShare()) {
+      try { await navigator.share({ text: current.text }); } catch { /* dismissed */ }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(current.text);
+      toast(t().copied);
+    } catch {
+      toast(t().copyFail);
+    }
+  });
+
+  /* ===================== motion ========================================= */
+  const hasMotion = typeof DeviceMotionEvent !== 'undefined';
+  const needsPerm = hasMotion && typeof DeviceMotionEvent.requestPermission === 'function';
+
+  let lx = 0, ly = 0, lz = 0, lastT = 0;
+  function onMotion(e) {
+    const a = e.accelerationIncludingGravity;
+    if (!a || a.x == null) return;
+    if (!motionSeen) { motionSeen = true; applyUI(); }   // desktop never gets here
+    const now = e.timeStamp || performance.now();
+    if (now - lastT < 60) return;                        // ~16Hz is plenty, saves battery
+    lastT = now;
+    const force = Math.abs(a.x - lx) + Math.abs(a.y - ly) + Math.abs(a.z - lz);
+    lx = a.x; ly = a.y; lz = a.z;
+    if (force > 14) draw({ intensity: Math.min(2.6, 0.7 + force / 28) });
+  }
+
+  function startMotion() {
+    if (motionOn || !hasMotion) return;
+    motionOn = true;
+    window.addEventListener('devicemotion', onMotion, { passive: true });
+    enableWrap.classList.remove('show');
+    store.set('motion', 'granted');
+    applyUI();
+  }
+
+  enableBtn.addEventListener('click', async () => {
+    if (!needsPerm) { startMotion(); toast(t().shakeOn); return; }
+    try {
+      const r = await DeviceMotionEvent.requestPermission();
+      if (r === 'granted') { startMotion(); toast(t().shakeOn); }
+      else {
+        // Denied is a normal outcome, not a dead end: hide the offer, keep tapping.
+        enableWrap.classList.remove('show');
+        store.set('motion', 'denied');
+        toast(t().shakeOff);
+        applyUI();
+      }
+    } catch {
+      enableWrap.classList.remove('show');
+      toast(t().shakeOff);
+    }
+  });
+
+  /* ===================== WebGL jar ====================================== */
+  const jar = (() => {
+    const gl = canvas.getContext('webgl2', { antialias: true, alpha: true });
+    if (!gl) {
+      document.body.classList.add('no-webgl');
+      return { shake() {}, setTheme() {}, resize() {} };
+    }
+
+    let cw = 0, ch = 0, dark = 1, needResize = true;
+    /* The old code called this every single frame, so every frame read
+       canvas.clientWidth and forced a synchronous layout. Now a ResizeObserver
+       raises a flag and the measurement happens only when the box actually
+       changed. */
+    function applyResize() {
+      needResize = false;
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
+      if (w === cw && h === ch) return false;
+      cw = canvas.width = w; ch = canvas.height = h;
+      gl.viewport(0, 0, w, h);
+      return true;
+    }
+
+    function compile(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+      return s;
+    }
+    function link(vs, fs, varyings) {
+      const p = gl.createProgram();
+      gl.attachShader(p, compile(gl.VERTEX_SHADER, vs));
+      gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+      if (varyings) gl.transformFeedbackVaryings(p, varyings, gl.INTERLEAVED_ATTRIBS);
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(p));
+      return p;
+    }
+
+    const jarVS = `attribute vec3 aPos; attribute vec3 aNorm; uniform mat4 uMVP; uniform mat4 uModel;
+      varying vec3 vN; varying vec3 vPos;
       void main(){ vec4 wp=uModel*vec4(aPos,1.0); vPos=wp.xyz; vN=mat3(uModel)*aNorm; gl_Position=uMVP*vec4(aPos,1.0); }`;
-    const jarFS=`precision mediump float; varying vec3 vN; varying vec3 vPos; uniform vec3 uLight;
-      void main(){ vec3 n=normalize(vN); float diff=max(dot(n,normalize(uLight)),0.0);
+    /* uDark drives the glass palette so the jar reads correctly on a light page
+       instead of staying tuned for the old dark-only design. */
+    const jarFS = `precision mediump float; varying vec3 vN; varying vec3 vPos;
+      uniform vec3 uLight; uniform float uDark;
+      void main(){
+        vec3 n=normalize(vN);
+        float diff=max(dot(n,normalize(uLight)),0.0);
         float fres=pow(1.0-abs(dot(n,vec3(0.,0.,1.))),2.4);
-        vec3 col=mix(vec3(.52,.80,.95),vec3(.92,.97,1.),fres); col*=.32+.68*diff;
-        float liquid=smoothstep(-.34,-.12,vPos.y); col=mix(col,vec3(.28,.52,.72),liquid*.48);
-        gl_FragColor=vec4(col,.80+fres*.18); }`;
-    const prog=gl.createProgram();
-    gl.attachShader(prog, compile(gl.VERTEX_SHADER, jarVS));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, jarFS));
-    gl.linkProgram(prog);
+        vec3 a=mix(vec3(.09,.40,.60), vec3(.52,.80,.95), uDark);
+        vec3 b=mix(vec3(.42,.68,.86), vec3(.92,.97,1.), uDark);
+        vec3 col=mix(a,b,fres); col*=.32+.68*diff;
+        float liquid=smoothstep(-.34,-.12,vPos.y);
+        col=mix(col, mix(vec3(.05,.28,.46), vec3(.28,.52,.72), uDark), liquid*.48);
+        // Premultiplied output — the context is premultipliedAlpha:true and the
+        // canvas now clears transparent so the themed page shows through.
+        // Low body alpha with a bright fresnel rim is what makes it read as
+        // glass; at the old ~0.9 it was an opaque cylinder.
+        float al=mix(.34,.30,uDark)+fres*.5;
+        gl_FragColor=vec4(col*al, al);
+      }`;
+    const prog = link(jarVS, jarFS);
 
-    const pos=[], nor=[], idx=[]; const SEG=32;
-    function ring(y,r){ const base=pos.length/3; for(let i=0;i<=SEG;i++){ const a=(i/SEG)*Math.PI*2; const x=Math.cos(a)*r, z=Math.sin(a)*r; pos.push(x,y,z); nor.push(x,.12,z);} return base; }
-    const b0=ring(-.56,.43), b1=ring(.24,.43), n0=ring(.27,.29), n1=ring(.47,.26), l0=ring(.49,.33), l1=ring(.58,.33);
-    function stitch(a,b){ for(let i=0;i<SEG;i++) idx.push(a+i,b+i,a+i+1, a+i+1,b+i,b+i+1); }
-    stitch(b0,b1); stitch(b1,n0); stitch(n0,n1); stitch(n1,l0); stitch(l0,l1);
-    for(let i=0;i<nor.length;i+=3){ const x=pos[i], z=pos[i+2], len=Math.hypot(x,z)||1; nor[i]=x/len; nor[i+1]=.14; nor[i+2]=z/len; }
+    const pos = [], nor = [], idx = []; const SEG = 32;
+    function ring(y, r) {
+      const base = pos.length / 3;
+      for (let i = 0; i <= SEG; i++) { const a = (i / SEG) * Math.PI * 2; pos.push(Math.cos(a) * r, y, Math.sin(a) * r); nor.push(0, 0, 0); }
+      return base;
+    }
+    const b0 = ring(-.56, .43), b1 = ring(.24, .43), n0 = ring(.27, .29), n1 = ring(.47, .26), l0 = ring(.49, .33), l1 = ring(.58, .33);
+    function stitch(a, b) { for (let i = 0; i < SEG; i++) idx.push(a + i, b + i, a + i + 1, a + i + 1, b + i, b + i + 1); }
+    stitch(b0, b1); stitch(b1, n0); stitch(n0, n1); stitch(n1, l0); stitch(l0, l1);
+    for (let i = 0; i < nor.length; i += 3) {
+      const x = pos[i], z = pos[i + 2], len = Math.hypot(x, z) || 1;
+      nor[i] = x / len; nor[i + 1] = .14; nor[i + 2] = z / len;
+    }
 
-    const posBuf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,posBuf); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(pos),gl.STATIC_DRAW);
-    const norBuf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,norBuf); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(nor),gl.STATIC_DRAW);
-    const idxBuf=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,idxBuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
+    const posBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW);
+    const norBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, norBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nor), gl.STATIC_DRAW);
+    const idxBuf = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
 
-    const aPos=gl.getAttribLocation(prog,'aPos'), aNorm=gl.getAttribLocation(prog,'aNorm');
-    const uMVP=gl.getUniformLocation(prog,'uMVP'), uModel=gl.getUniformLocation(prog,'uModel'), uLight=gl.getUniformLocation(prog,'uLight');
-    gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.clearColor(0.043,0.051,0.07,1);
+    const aPos = gl.getAttribLocation(prog, 'aPos'), aNorm = gl.getAttribLocation(prog, 'aNorm');
+    const uMVP = gl.getUniformLocation(prog, 'uMVP'), uModel = gl.getUniformLocation(prog, 'uModel');
+    const uLight = gl.getUniformLocation(prog, 'uLight'), uDark = gl.getUniformLocation(prog, 'uDark');
 
-    function perspective(fovy,aspect,near,far){ const f=1/Math.tan(fovy/2); const m=new Float32Array(16); m[0]=f/aspect; m[5]=f; m[10]=(far+near)/(near-far); m[11]=-1; m[14]=(2*far*near)/(near-far); return m; }
-    function mul(a,b){ const o=new Float32Array(16); for(let i=0;i<4;i++) for(let j=0;j<4;j++) o[i*4+j]=a[i*4]*b[j]+a[i*4+1]*b[4+j]+a[i*4+2]*b[8+j]+a[i*4+3]*b[12+j]; return o; }
-    function rotY(r){ const c=Math.cos(r),s=Math.sin(r); return new Float32Array([c,0,s,0, 0,1,0,0, -s,0,c,0, 0,0,0,1]); }
-    function rotX(r){ const c=Math.cos(r),s=Math.sin(r); return new Float32Array([1,0,0,0, 0,c,-s,0, 0,s,c,0, 0,0,0,1]); }
-    function rotZ(r){ const c=Math.cos(r),s=Math.sin(r); return new Float32Array([c,-s,0,0, s,c,0,0, 0,0,1,0, 0,0,0,1]); }
-    function translate(x,y,z){ return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]); }
-    function scale(s){ return new Float32Array([s,0,0,0, 0,s,0,0, 0,0,s,0, 0,0,0,1]); }
+    gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
+    // "over" for premultiplied source, with alpha accumulated separately so the
+    // canvas composites correctly onto the page instead of eating its own alpha.
+    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    // Transparent clear: the page background shows through, so the canvas
+    // follows the theme instead of painting its own hard-coded dark colour.
+    gl.clearColor(0, 0, 0, 0);
 
-    const phys={ x:0,y:0,z:0, vx:0,vy:0,vz:0, rx:0,ry:0,rz:0, wrx:0,wry:0,wrz:0, s:1, vs:0, idleY:.35 };
-    const K_POS=48, D_POS=9.5, K_ROT=36, D_ROT=7.2, K_SCL=60, D_SCL=11, MAX_IMPULSE=2.8;
+    function perspective(fovy, aspect, near, far) { const f = 1 / Math.tan(fovy / 2), m = new Float32Array(16); m[0] = f / aspect; m[5] = f; m[10] = (far + near) / (near - far); m[11] = -1; m[14] = (2 * far * near) / (near - far); return m; }
+    /* Column-major 4x4 multiply.
+       This previously multiplied as if the matrices were row-major, while every
+       matrix built here (and everything gl.uniformMatrix4fv expects) is
+       column-major. The result was a transform whose w came out as 0 for almost
+       every vertex, so the jar and the particles were never actually on screen —
+       the stage rendered as an empty rectangle. */
+    function mul(a, b) {
+      const o = new Float32Array(16);
+      for (let c = 0; c < 4; c++) {
+        for (let r = 0; r < 4; r++) {
+          let s = 0;
+          for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+          o[c * 4 + r] = s;
+        }
+      }
+      return o;
+    }
+    function rotY(r) { const c = Math.cos(r), s = Math.sin(r); return new Float32Array([c, 0, s, 0, 0, 1, 0, 0, -s, 0, c, 0, 0, 0, 0, 1]); }
+    function rotX(r) { const c = Math.cos(r), s = Math.sin(r); return new Float32Array([1, 0, 0, 0, 0, c, -s, 0, 0, s, c, 0, 0, 0, 0, 1]); }
+    function rotZ(r) { const c = Math.cos(r), s = Math.sin(r); return new Float32Array([c, -s, 0, 0, s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]); }
+    function translate(x, y, z) { return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]); }
+    function scale(s) { return new Float32Array([s, 0, 0, 0, 0, s, 0, 0, 0, 0, s, 0, 0, 0, 0, 1]); }
 
-    const MAX_P=320;
-    const initData=new Float32Array(MAX_P*8);
-    const pBufA=gl.createBuffer(), pBufB=gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER,pBufA); gl.bufferData(gl.ARRAY_BUFFER,initData,gl.DYNAMIC_COPY);
-    gl.bindBuffer(gl.ARRAY_BUFFER,pBufB); gl.bufferData(gl.ARRAY_BUFFER,initData,gl.DYNAMIC_COPY);
-    let readBuf=pBufA, writeBuf=pBufB;
+    const phys = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, rx: 0, ry: 0, rz: 0, wrx: 0, wry: 0, wrz: 0, s: 1, vs: 0, idleY: .35 };
+    const K_POS = 48, D_POS = 9.5, K_ROT = 36, D_ROT = 7.2, K_SCL = 60, D_SCL = 11, MAX_IMPULSE = 2.8;
 
-    const updateVS=`#version 300 es
+    const MAX_P = 320;
+    const initData = new Float32Array(MAX_P * 8);
+    const pBufA = gl.createBuffer(), pBufB = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, pBufA); gl.bufferData(gl.ARRAY_BUFFER, initData, gl.DYNAMIC_COPY);
+    gl.bindBuffer(gl.ARRAY_BUFFER, pBufB); gl.bufferData(gl.ARRAY_BUFFER, initData, gl.DYNAMIC_COPY);
+    let readBuf = pBufA, writeBuf = pBufB;
+
+    const updateVS = `#version 300 es
       in vec3 iPos; in vec3 iVel; in float iLife; in float iMaxLife;
       uniform float uDt; uniform float uEmit; uniform float uIntensity; uniform float uSeed;
       out vec3 oPos; out vec3 oVel; out float oLife; out float oMaxLife;
@@ -213,14 +639,9 @@
         else { life=0.0; pos=vec3(0); vel=vec3(0); maxL=1.0; }
         oPos=pos; oVel=vel; oLife=life; oMaxLife=maxL;
       }`;
-    const updateFS=`#version 300 es\nvoid main(){}`;
-    const updateProg=gl.createProgram();
-    gl.attachShader(updateProg, compile(gl.VERTEX_SHADER, updateVS));
-    gl.attachShader(updateProg, compile(gl.FRAGMENT_SHADER, updateFS));
-    gl.transformFeedbackVaryings(updateProg, ['oPos','oVel','oLife','oMaxLife'], gl.INTERLEAVED_ATTRIBS);
-    gl.linkProgram(updateProg);
+    const updateProg = link(updateVS, `#version 300 es\nvoid main(){}`, ['oPos', 'oVel', 'oLife', 'oMaxLife']);
 
-    const renderVS=`#version 300 es
+    const renderVS = `#version 300 es
       in vec3 aPos; in float aLife; in float aMaxLife;
       uniform mat4 uViewProj; uniform float uPixelRatio;
       out float vAlpha; out float vAge;
@@ -231,54 +652,66 @@
         vec4 clip=uViewProj*vec4(aPos,1.0); gl_Position=clip;
         gl_PointSize=mix(15.,3.5,vAge)*uPixelRatio/max(clip.w,.4);
       }`;
-    const renderFS=`#version 300 es
-      precision mediump float; in float vAlpha; in float vAge; out vec4 fragColor;
-      void main(){ vec2 uv=gl_PointCoord*2.-1.; float d=dot(uv,uv); if(d>1.) discard;
-        float soft=exp(-d*2.6); vec3 col=mix(vec3(.5,.82,1.),vec3(.92,.96,1.),vAge);
-        fragColor=vec4(col, vAlpha*soft*.88); }`;
-    const renderProg=gl.createProgram();
-    gl.attachShader(renderProg, compile(gl.VERTEX_SHADER, renderVS));
-    gl.attachShader(renderProg, compile(gl.FRAGMENT_SHADER, renderFS));
-    gl.linkProgram(renderProg);
+    const renderFS = `#version 300 es
+      precision mediump float; in float vAlpha; in float vAge; uniform float uDark; out vec4 fragColor;
+      void main(){
+        vec2 uv=gl_PointCoord*2.-1.; float d=dot(uv,uv); if(d>1.) discard;
+        float soft=exp(-d*2.6);
+        vec3 c1=mix(vec3(.04,.36,.58), vec3(.5,.82,1.), uDark);
+        vec3 c2=mix(vec3(.20,.55,.75), vec3(.92,.96,1.), uDark);
+        vec3 col=mix(c1,c2,vAge);
+        float al=vAlpha*soft*.88;
+        fragColor=vec4(col*al, al);
+      }`;
+    const renderProg = link(renderVS, renderFS);
 
-    const u_iPos=gl.getAttribLocation(updateProg,'iPos'), u_iVel=gl.getAttribLocation(updateProg,'iVel');
-    const u_iLife=gl.getAttribLocation(updateProg,'iLife'), u_iMaxLife=gl.getAttribLocation(updateProg,'iMaxLife');
-    const uuDt=gl.getUniformLocation(updateProg,'uDt'), uuEmit=gl.getUniformLocation(updateProg,'uEmit');
-    const uuIntensity=gl.getUniformLocation(updateProg,'uIntensity'), uuSeed=gl.getUniformLocation(updateProg,'uSeed');
-    const r_aPos=gl.getAttribLocation(renderProg,'aPos'), r_aLife=gl.getAttribLocation(renderProg,'aLife');
-    const r_aMaxLife=gl.getAttribLocation(renderProg,'aMaxLife');
-    const ruViewProj=gl.getUniformLocation(renderProg,'uViewProj'), ruPixelRatio=gl.getUniformLocation(renderProg,'uPixelRatio');
-    const tf=gl.createTransformFeedback();
+    const u_iPos = gl.getAttribLocation(updateProg, 'iPos'), u_iVel = gl.getAttribLocation(updateProg, 'iVel');
+    const u_iLife = gl.getAttribLocation(updateProg, 'iLife'), u_iMaxLife = gl.getAttribLocation(updateProg, 'iMaxLife');
+    const uuDt = gl.getUniformLocation(updateProg, 'uDt'), uuEmit = gl.getUniformLocation(updateProg, 'uEmit');
+    const uuIntensity = gl.getUniformLocation(updateProg, 'uIntensity'), uuSeed = gl.getUniformLocation(updateProg, 'uSeed');
+    const r_aPos = gl.getAttribLocation(renderProg, 'aPos'), r_aLife = gl.getAttribLocation(renderProg, 'aLife');
+    const r_aMaxLife = gl.getAttribLocation(renderProg, 'aMaxLife');
+    const ruViewProj = gl.getUniformLocation(renderProg, 'uViewProj');
+    const ruPixelRatio = gl.getUniformLocation(renderProg, 'uPixelRatio');
+    const ruDark = gl.getUniformLocation(renderProg, 'uDark');
+    const tf = gl.createTransformFeedback();
 
-    let pendingEmit=0, pendingIntensity=1, emitSeed=1, lastTs=0;
+    let pendingEmit = 0, pendingIntensity = 1, emitSeed = 1, lastTs = 0, rafId = null, alive = 0;
 
-    function shake(intensity=1.2){
-      const f=Math.min(intensity, MAX_IMPULSE);
-      const ax=(Math.random()-.5)*2, ay=(Math.random()-.5)*2, az=(Math.random()-.5)*2, len=Math.hypot(ax,ay,az)||1;
-      phys.vx+=(ax/len)*f*1.8; phys.vy+=(ay/len)*f*1.1; phys.vz+=(az/len)*f*.7;
-      phys.wrx+=(Math.random()-.5)*f*3.2; phys.wry+=(Math.random()-.5)*f*2.4; phys.wrz+=(Math.random()-.5)*f*2.8;
-      phys.vs-=f*.35;
-      pendingEmit=Math.min(120, Math.floor(35+f*50)); pendingIntensity=f; emitSeed=Math.random()*1000;
+    function shake(intensity = 1.2) {
+      if (reduced) { frame(performance.now()); return; }   // no impulse, no burst
+      const f = Math.min(intensity, MAX_IMPULSE);
+      const ax = (Math.random() - .5) * 2, ay = (Math.random() - .5) * 2, az = (Math.random() - .5) * 2;
+      const len = Math.hypot(ax, ay, az) || 1;
+      phys.vx += (ax / len) * f * 1.8; phys.vy += (ay / len) * f * 1.1; phys.vz += (az / len) * f * .7;
+      phys.wrx += (Math.random() - .5) * f * 3.2; phys.wry += (Math.random() - .5) * f * 2.4; phys.wrz += (Math.random() - .5) * f * 2.8;
+      phys.vs -= f * .35;
+      pendingEmit = Math.min(120, Math.floor(35 + f * 50));
+      pendingIntensity = f; emitSeed = Math.random() * 1000;
+      alive = 2.5;                                          // seconds of particle life to keep simulating
+      start();
     }
 
-    function stepJar(dt){
-      dt=Math.min(dt,.033);
-      phys.vx+=(-K_POS*phys.x-D_POS*phys.vx)*dt; phys.vy+=(-K_POS*phys.y-D_POS*phys.vy)*dt; phys.vz+=(-K_POS*phys.z-D_POS*phys.vz)*dt;
-      phys.x+=phys.vx*dt; phys.y+=phys.vy*dt; phys.z+=phys.vz*dt;
-      phys.wrx+=(-K_ROT*phys.rx-D_ROT*phys.wrx)*dt; phys.wry+=(-K_ROT*phys.ry-D_ROT*phys.wry)*dt; phys.wrz+=(-K_ROT*phys.rz-D_ROT*phys.wrz)*dt;
-      phys.rx+=phys.wrx*dt; phys.ry+=phys.wry*dt; phys.rz+=phys.wrz*dt;
-      phys.vs+=(-K_SCL*(phys.s-1)-D_SCL*phys.vs)*dt; phys.s+=phys.vs*dt; phys.idleY+=.55*dt;
+    function stepJar(dt) {
+      dt = Math.min(dt, .033);
+      phys.vx += (-K_POS * phys.x - D_POS * phys.vx) * dt; phys.vy += (-K_POS * phys.y - D_POS * phys.vy) * dt; phys.vz += (-K_POS * phys.z - D_POS * phys.vz) * dt;
+      phys.x += phys.vx * dt; phys.y += phys.vy * dt; phys.z += phys.vz * dt;
+      phys.wrx += (-K_ROT * phys.rx - D_ROT * phys.wrx) * dt; phys.wry += (-K_ROT * phys.ry - D_ROT * phys.wry) * dt; phys.wrz += (-K_ROT * phys.rz - D_ROT * phys.wrz) * dt;
+      phys.rx += phys.wrx * dt; phys.ry += phys.wry * dt; phys.rz += phys.wrz * dt;
+      phys.vs += (-K_SCL * (phys.s - 1) - D_SCL * phys.vs) * dt; phys.s += phys.vs * dt;
+      phys.idleY += .55 * dt;
     }
 
-    function stepParticles(dt){
+    function stepParticles(dt) {
       gl.useProgram(updateProg);
-      gl.uniform1f(uuDt,dt); gl.uniform1f(uuEmit,pendingEmit); gl.uniform1f(uuIntensity,pendingIntensity); gl.uniform1f(uuSeed,emitSeed);
-      pendingEmit=0;
+      gl.uniform1f(uuDt, dt); gl.uniform1f(uuEmit, pendingEmit);
+      gl.uniform1f(uuIntensity, pendingIntensity); gl.uniform1f(uuSeed, emitSeed);
+      pendingEmit = 0;
       gl.bindBuffer(gl.ARRAY_BUFFER, readBuf);
-      gl.enableVertexAttribArray(u_iPos); gl.vertexAttribPointer(u_iPos,3,gl.FLOAT,false,32,0);
-      gl.enableVertexAttribArray(u_iVel); gl.vertexAttribPointer(u_iVel,3,gl.FLOAT,false,32,12);
-      gl.enableVertexAttribArray(u_iLife); gl.vertexAttribPointer(u_iLife,1,gl.FLOAT,false,32,24);
-      gl.enableVertexAttribArray(u_iMaxLife); gl.vertexAttribPointer(u_iMaxLife,1,gl.FLOAT,false,32,28);
+      gl.enableVertexAttribArray(u_iPos); gl.vertexAttribPointer(u_iPos, 3, gl.FLOAT, false, 32, 0);
+      gl.enableVertexAttribArray(u_iVel); gl.vertexAttribPointer(u_iVel, 3, gl.FLOAT, false, 32, 12);
+      gl.enableVertexAttribArray(u_iLife); gl.vertexAttribPointer(u_iLife, 1, gl.FLOAT, false, 32, 24);
+      gl.enableVertexAttribArray(u_iMaxLife); gl.vertexAttribPointer(u_iMaxLife, 1, gl.FLOAT, false, 32, 28);
       gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
       gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, writeBuf);
       gl.enable(gl.RASTERIZER_DISCARD);
@@ -288,40 +721,106 @@
       gl.disable(gl.RASTERIZER_DISCARD);
       gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
       gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-      const tmp=readBuf; readBuf=writeBuf; writeBuf=tmp;
+      const tmp = readBuf; readBuf = writeBuf; writeBuf = tmp;
     }
 
-    function render(ts){
-      if(!lastTs) lastTs=ts;
-      const dt=Math.min((ts-lastTs)/1000, .033); lastTs=ts;
-      stepJar(dt); stepParticles(dt); resize();
-      gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-      const aspect=canvas.width/canvas.height;
-      const proj=perspective(.52,aspect,.1,20), view=translate(0,-.04,-2.55), viewProj=mul(proj,view);
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      const dt = Math.min((ts - lastTs) / 1000, .033); lastTs = ts;
+      if (needResize) applyResize();
+      // Skip the transform-feedback pass entirely when no particles are alive —
+      // most of the time the jar is just idling and the burst sim is pure waste.
+      if (!reduced) { stepJar(dt); if (alive > 0) stepParticles(dt); }
+
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      const aspect = (canvas.width || 1) / (canvas.height || 1);
+      const proj = perspective(.52, aspect, .1, 20), view = translate(0, -.04, -2.55), viewProj = mul(proj, view);
 
       gl.useProgram(prog);
-      let model=mul(rotY(phys.idleY+phys.ry), rotX(phys.rx));
-      model=mul(rotZ(phys.rz), model); model=mul(scale(phys.s), model); model=mul(translate(phys.x,phys.y,phys.z*.4), model);
-      const mvp=mul(proj, mul(view, model));
-      gl.uniformMatrix4fv(uMVP,false,mvp); gl.uniformMatrix4fv(uModel,false,model); gl.uniform3f(uLight,.55,1.25,1.6);
-      gl.bindBuffer(gl.ARRAY_BUFFER,posBuf); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,0,0);
-      gl.bindBuffer(gl.ARRAY_BUFFER,norBuf); gl.enableVertexAttribArray(aNorm); gl.vertexAttribPointer(aNorm,3,gl.FLOAT,false,0,0);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,idxBuf); gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_SHORT, 0);
-
-      gl.useProgram(renderProg); gl.depthMask(false);
-      gl.bindBuffer(gl.ARRAY_BUFFER, readBuf);
-      gl.enableVertexAttribArray(r_aPos); gl.vertexAttribPointer(r_aPos,3,gl.FLOAT,false,32,0);
-      gl.enableVertexAttribArray(r_aLife); gl.vertexAttribPointer(r_aLife,1,gl.FLOAT,false,32,24);
-      gl.enableVertexAttribArray(r_aMaxLife); gl.vertexAttribPointer(r_aMaxLife,1,gl.FLOAT,false,32,28);
-      gl.uniformMatrix4fv(ruViewProj,false,viewProj); gl.uniform1f(ruPixelRatio, Math.min(devicePixelRatio||1,2));
-      gl.drawArrays(gl.POINTS, 0, MAX_P);
-      gl.disableVertexAttribArray(r_aPos); gl.disableVertexAttribArray(r_aLife); gl.disableVertexAttribArray(r_aMaxLife);
+      let model = mul(rotY(phys.idleY + phys.ry), rotX(phys.rx));
+      model = mul(rotZ(phys.rz), model); model = mul(scale(phys.s), model);
+      model = mul(translate(phys.x, phys.y, phys.z * .4), model);
+      gl.uniformMatrix4fv(uMVP, false, mul(proj, mul(view, model)));
+      gl.uniformMatrix4fv(uModel, false, model);
+      gl.uniform3f(uLight, .55, 1.25, 1.6);
+      gl.uniform1f(uDark, dark);
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, norBuf); gl.enableVertexAttribArray(aNorm); gl.vertexAttribPointer(aNorm, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+      // Don't write depth: the far wall of the jar has to show through the near
+      // one, otherwise the glass self-occludes and looks like solid plastic.
+      gl.depthMask(false);
+      gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_SHORT, 0);
       gl.depthMask(true);
-      requestAnimationFrame(render);
+
+      if (!reduced && alive > 0) {
+        gl.useProgram(renderProg); gl.depthMask(false);
+        gl.bindBuffer(gl.ARRAY_BUFFER, readBuf);
+        gl.enableVertexAttribArray(r_aPos); gl.vertexAttribPointer(r_aPos, 3, gl.FLOAT, false, 32, 0);
+        gl.enableVertexAttribArray(r_aLife); gl.vertexAttribPointer(r_aLife, 1, gl.FLOAT, false, 32, 24);
+        gl.enableVertexAttribArray(r_aMaxLife); gl.vertexAttribPointer(r_aMaxLife, 1, gl.FLOAT, false, 32, 28);
+        gl.uniformMatrix4fv(ruViewProj, false, viewProj);
+        gl.uniform1f(ruPixelRatio, Math.min(devicePixelRatio || 1, 2));
+        gl.uniform1f(ruDark, dark);
+        gl.drawArrays(gl.POINTS, 0, MAX_P);
+        gl.disableVertexAttribArray(r_aPos); gl.disableVertexAttribArray(r_aLife); gl.disableVertexAttribArray(r_aMaxLife);
+        gl.depthMask(true);
+      }
+      alive = Math.max(0, alive - dt);
     }
-    requestAnimationFrame(render);
-    return { shake };
+
+    function loop(ts) { frame(ts); rafId = requestAnimationFrame(loop); }
+
+    /* The jar's slow idle spin is part of the design, so the loop keeps running
+       while the page is actually being looked at — but the old code never
+       stopped, burning GPU on a backgrounded tab. */
+    function start() {
+      if (reduced || rafId !== null || document.hidden) return;
+      lastTs = 0;
+      rafId = requestAnimationFrame(loop);
+    }
+    function stop() { if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; } }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stop(); else start();
+    });
+
+    function onBoxChange() {
+      needResize = true;
+      if (reduced) { if (applyResize()) frame(performance.now()); }
+      else start();
+    }
+    if ('ResizeObserver' in window) new ResizeObserver(onBoxChange).observe(canvas);
+    else addEventListener('resize', onBoxChange);
+
+    if (reduced) frame(performance.now()); else start();
+
+    return {
+      shake,
+      setTheme(d) {
+        dark = d;
+        if (reduced) frame(performance.now()); else start();
+      },
+      setReduced(r) {
+        if (r) { stop(); frame(performance.now()); } else start();
+      }
+    };
   })();
+
+  // Honour a mid-session change to the OS motion preference without a reload.
+  reduceMQ.addEventListener('change', e => { reduced = e.matches; jar.setReduced(reduced); });
+
+  /* ===================== boot =========================================== */
+  if (hasMotion && !needsPerm) {
+    startMotion();                       // Android / desktop: no prompt needed
+  } else if (needsPerm && store.get('motion', '') !== 'denied') {
+    // iOS: offer motion as an upgrade. The app already works by tapping.
+    enableWrap.classList.add('show');
+  }
+
+  document.querySelectorAll('.lang button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  applyUI();
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});

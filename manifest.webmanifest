@@ -9,6 +9,7 @@
   "background_color": "#0b0d12",
   "theme_color": "#0b0d12",
   "lang": "en",
+  "categories": ["entertainment", "lifestyle"],
   "icons": [
     {
       "src": "icon.svg",
@@ -26,7 +27,13 @@
       "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
